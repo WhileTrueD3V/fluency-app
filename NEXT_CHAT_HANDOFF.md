@@ -70,22 +70,13 @@ This folder was not originally a Git repository. On June 10, 2026, a local Git r
 
 - Current branch: `main`
 - Initial commit: `a352c63` (`Initial Kibbo app repository`)
-- No GitHub remote is configured yet.
+- GitHub remote: `origin` -> `https://github.com/WhileTrueD3V/fluency-app.git`
+- `main` is pushed and tracking `origin/main`.
 - `.env.local`, `.expo/`, `dist/`, `node_modules/`, `.vercel/`, `.claude/`, and local JSONL usage logs are ignored.
 - `validate:launch` and `npx tsc --noEmit` passed before the initial commit.
-- `gh` is not installed in the Codex environment, so creating the GitHub repo from the terminal was blocked.
+- `gh` is not installed in the Codex environment, but pushing via Git HTTPS worked after the user provided the repo URL.
 
-Next GitHub step:
-
-1. Create an empty private GitHub repo, preferably named `fluency-app` or `kibbo-fluency-app`.
-2. Add it as `origin` and push:
-
-   ```bash
-   git remote add origin https://github.com/<owner>/<repo>.git
-   git push -u origin main
-   ```
-
-Once that is pushed, Vercel can import the GitHub repo using the one-project Vercel setup documented in `TEACHER_BETA_DEPLOYMENT.md`.
+Next deployment step: import the GitHub repo into Vercel using the one-project setup documented in `TEACHER_BETA_DEPLOYMENT.md`.
 
 ## Product Direction
 
