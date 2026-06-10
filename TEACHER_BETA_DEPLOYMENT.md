@@ -2,6 +2,27 @@
 
 Goal: create a shareable web URL for AP Japanese teachers to test Kibbo without localhost.
 
+## Current Live Teacher Beta URL
+
+Production URL:
+
+```txt
+https://fluency-app-five.vercel.app
+```
+
+Health check:
+
+```txt
+https://fluency-app-five.vercel.app/api/health
+```
+
+Status as of June 10, 2026:
+
+- Vercel project: `dashbrier-9197s-projects/fluency-app`
+- GitHub repo connected: `https://github.com/WhileTrueD3V/fluency-app.git`
+- Production deploy is live.
+- `/api/health` returns `ok: true`, `provider: openai`, `hasKey: true`, and enforced cost caps.
+
 ## Current Recommended Path
 
 Use one Vercel project for both:

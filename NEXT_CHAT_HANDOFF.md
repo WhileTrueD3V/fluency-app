@@ -76,7 +76,26 @@ This folder was not originally a Git repository. On June 10, 2026, a local Git r
 - `validate:launch` and `npx tsc --noEmit` passed before the initial commit.
 - `gh` is not installed in the Codex environment, but pushing via Git HTTPS worked after the user provided the repo URL.
 
-Next deployment step: import the GitHub repo into Vercel using the one-project setup documented in `TEACHER_BETA_DEPLOYMENT.md`.
+Deployment setup details are documented in `TEACHER_BETA_DEPLOYMENT.md`.
+
+## Vercel Teacher Beta Deployment Status
+
+The GitHub repo was connected to Vercel and deployed on June 10, 2026.
+
+- Vercel project: `dashbrier-9197s-projects/fluency-app`
+- Production URL: `https://fluency-app-five.vercel.app`
+- Deployment inspector: `https://vercel.com/dashbrier-9197s-projects/fluency-app/13KvXDHNdQbvvXGUEF8QbJyVU2cX`
+- GitHub integration is connected to `https://github.com/WhileTrueD3V/fluency-app.git`.
+- Production environment variables are configured, including server-side `OPENAI_API_KEY`, OpenAI nano/mini model split, and cost caps.
+- `/api/health` was checked after deploy and returned:
+  - `ok: true`
+  - `provider: openai`
+  - `hasKey: true`
+  - `costControls.enforceCostCap: true`
+  - `costControls.exposeCosts: false`
+- Frontend root returned HTTP 200.
+
+Important: Only Production env vars were added through the CLI. Preview/Development Vercel env setup hit a Vercel agent-mode branch prompt and can be filled later in the dashboard if preview deployments need AI access. The teacher beta production URL works with the configured Production env vars.
 
 ## Product Direction
 
