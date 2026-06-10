@@ -120,9 +120,9 @@ function sanitizeDailyPlanAction(action, payload) {
     };
   }
 
-  const recentClubChange = /(club|部活|クラブ).{0,120}(change|changed|schedule|予定|変更|変わ|変える)/i.test(recentText);
-  const actionClubChange = /(club|部活|クラブ).{0,120}(change|changed|schedule|予定|変更|変わ|変える)/i.test(actionText);
-  if (recentClubChange && actionClubChange) {
+  const recentScheduleChange = /(club|部活|クラブ|meeting|notice|schedule|予定|変更).{0,160}(change|changed|schedule|reason|理由|予定|変更|変わ|変える)|(change|changed|schedule|reason|理由|予定|変更|変わ|変える).{0,160}(club|部活|クラブ|meeting|notice|schedule|予定|変更)/i.test(recentText);
+  const actionScheduleChange = /(notice|announcement|bulletin|school|exam|meeting|location|schedule|予定|変更).{0,180}(change|changed|reason|why|because|理由|変更|変わ|変える)|(change|changed|reason|why|because|理由|変更|変わ|変える).{0,180}(notice|announcement|bulletin|school|exam|meeting|location|schedule|予定|変更)/i.test(actionText);
+  if (recentScheduleChange && actionScheduleChange) {
     return {
       ...action,
       mode: 'reading',
