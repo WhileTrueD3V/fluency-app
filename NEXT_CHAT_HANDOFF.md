@@ -83,7 +83,8 @@ Deployment setup details are documented in `TEACHER_BETA_DEPLOYMENT.md`.
 The GitHub repo was connected to Vercel and deployed on June 10, 2026.
 
 - Vercel project: `dashbrier-9197s-projects/fluency-app`
-- Production URL: `https://fluency-app-five.vercel.app`
+- Production URL: `https://kibbo-language-master.vercel.app`
+- Previous URL `https://fluency-app-five.vercel.app` redirects to the current production alias.
 - Deployment inspector: `https://vercel.com/dashbrier-9197s-projects/fluency-app/13KvXDHNdQbvvXGUEF8QbJyVU2cX`
 - GitHub integration is connected to `https://github.com/WhileTrueD3V/fluency-app.git`.
 - Production environment variables are configured, including server-side `OPENAI_API_KEY`, OpenAI nano/mini model split, and cost caps.
@@ -94,6 +95,7 @@ The GitHub repo was connected to Vercel and deployed on June 10, 2026.
   - `costControls.enforceCostCap: true`
   - `costControls.exposeCosts: false`
 - Frontend root returned HTTP 200.
+- A tiny live daily-plan generation call returned HTTP 200, confirming deployed AI generation works. That sampler exposed a repeated school-notice/change frame, so `server/grading-server.mjs` was tightened with broader daily-plan novelty guidance and a broader deterministic daily-plan sanitizer. Latest production deploy after that fix is ready and `/api/health` still passes.
 
 Important: Only Production env vars were added through the CLI. Preview/Development Vercel env setup hit a Vercel agent-mode branch prompt and can be filled later in the dashboard if preview deployments need AI access. The teacher beta production URL works with the configured Production env vars.
 
