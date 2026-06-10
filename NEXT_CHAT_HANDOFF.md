@@ -64,6 +64,29 @@ Latest quality audit work:
 
 Before another broad live QA pass, prefer targeted two-call checks or inspect generated outputs first to avoid wasting the user's prepaid test credits.
 
+## Git / GitHub Status
+
+This folder was not originally a Git repository. On June 10, 2026, a local Git repository was created in `/Users/chocolate_god/Downloads/fluency-app`.
+
+- Current branch: `main`
+- Initial commit: `a352c63` (`Initial Kibbo app repository`)
+- No GitHub remote is configured yet.
+- `.env.local`, `.expo/`, `dist/`, `node_modules/`, `.vercel/`, `.claude/`, and local JSONL usage logs are ignored.
+- `validate:launch` and `npx tsc --noEmit` passed before the initial commit.
+- `gh` is not installed in the Codex environment, so creating the GitHub repo from the terminal was blocked.
+
+Next GitHub step:
+
+1. Create an empty private GitHub repo, preferably named `fluency-app` or `kibbo-fluency-app`.
+2. Add it as `origin` and push:
+
+   ```bash
+   git remote add origin https://github.com/<owner>/<repo>.git
+   git push -u origin main
+   ```
+
+Once that is pushed, Vercel can import the GitHub repo using the one-project Vercel setup documented in `TEACHER_BETA_DEPLOYMENT.md`.
+
 ## Product Direction
 
 Kibbo is an ultra-personalized AP Japanese coach, not a generic language app, not a Memrise clone, and not a fixed lesson library.
