@@ -1,0 +1,54 @@
+{
+  "expo": {
+    "name": "Kibbo",
+    "slug": "kibbo-language",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "kibbo",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#F3ECDD"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "buildNumber": "1",
+      "bundleIdentifier": "com.kibbo.language",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSSpeechRecognitionUsageDescription": "Kibbo uses speech recognition to evaluate your pronunciation and fluency.",
+        "NSMicrophoneUsageDescription": "Kibbo needs microphone access to listen to your speaking practice."
+      }
+    },
+    "android": {
+      "versionCode": 1,
+      "permissions": [
+        "RECORD_AUDIO"
+      ],
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#F3ECDD"
+      },
+      "package": "com.kibbo.language"
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-speech-recognition",
+      [
+        "expo-av",
+        {
+          "microphonePermission": "Allow Kibbo to access your microphone for speaking practice."
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
