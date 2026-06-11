@@ -167,9 +167,10 @@ function textFrom(value) {
 function hasNoBannedRepeat(value) {
   const text = textFrom(value);
   const repeatedLateBring = /(遅れ|遅刻|late).{0,120}(持ち|持って|bring|what to bring)|(持ち|持って|bring|what to bring).{0,120}(遅れ|遅刻|late)/i.test(text);
+  const blockedLateOrBring = /(遅れ|遅刻|遅い|late|late arrival|apology timing|持ち物|持って|持っていく|bring|what to bring)/i.test(text);
   const repeatedClubChange = /(club meeting change|部活.{0,80}(変更|変わ|変える)|クラブ.{0,80}(変更|変わ|変える))/i.test(text);
   const staleTemplate = /train delay|platform|cafe flyer|store price/i.test(text);
-  return !(repeatedLateBring || repeatedClubChange || staleTemplate);
+  return !(repeatedLateBring || blockedLateOrBring || repeatedClubChange || staleTemplate);
 }
 
 function hasJapanese(value) {

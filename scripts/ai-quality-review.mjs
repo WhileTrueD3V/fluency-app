@@ -334,6 +334,15 @@ function evaluateOfflinePromptSafety() {
       modelAnswers: ['少し遅れるけど、何を持っていけばいい？'],
     }],
   };
+  const blockedSurfaceTexting = {
+    items: [{
+      id: 'ai-ja-blocked-late-only',
+      title: '宿題の提出相談',
+      situation: 'クラスメートに宿題の提出期限について尋ねる。',
+      prompts: ['提出期限に間に合わないかも。どうしようかな。'],
+      modelAnswers: ['ちょっと遅れそうだけど、提出はできると思う。'],
+    }],
+  };
   const freshTexting = {
     items: [{
       id: 'ai-ja-fresh-peer-practice',
@@ -344,6 +353,10 @@ function evaluateOfflinePromptSafety() {
     }],
   };
   const duplicateIssues = generatedContentNoveltyIssues(duplicateTexting, {
+    mode: 'texting',
+    profile: sampleProfile,
+  });
+  const blockedSurfaceIssues = generatedContentNoveltyIssues(blockedSurfaceTexting, {
     mode: 'texting',
     profile: sampleProfile,
   });
@@ -363,6 +376,7 @@ function evaluateOfflinePromptSafety() {
     { label: 'content prompt includes native casual Japanese guidance', pass: /んだけど|peer-casual|classmate/i.test(promptText) },
     { label: 'review prompt includes native peer-style coaching', pass: /native peer|りょ|おけ|まじ/i.test(promptText) },
     { label: 'duplicate late/bring task is rejected offline', pass: duplicateIssues.length > 0 },
+    { label: 'blocked late/bring surface terms are rejected offline', pass: blockedSurfaceIssues.length > 0 },
     { label: 'fresh peer practice is not rejected offline', pass: freshIssues.length === 0 },
     { label: 'novelty retry prompt clearly changes scenario and answer logic', pass: /NOVELTY RETRY/.test(retryPrompt) && /different situation, source type, speech act, answer logic/.test(retryPrompt) },
   ];

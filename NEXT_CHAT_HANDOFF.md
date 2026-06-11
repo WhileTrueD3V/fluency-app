@@ -73,11 +73,16 @@ Latest quality audit work:
   - For late/bring history, content prompts now explicitly forbid late/遅れ/遅刻/遅い and bring/持って/持ち物/what-to-bring terms in title, situation, prompts, model answers, questions, choices, and quality notes.
   - Retry prompts now include the same explicit ban when the rejected issue is late-arrival plus what-to-bring.
 - `scripts/ai-tiny-live-qa.mjs` now writes partial JSON/Markdown reports even when a live sampler fails, instead of losing the successful earlier cases.
-- No second paid sampler was run after this fix yet. Deploy the new server prompt first, then rerun only the tiny sampler if the user approves.
+- A second tiny production sampler passed all checks after deploy, but manual inspection showed the texting set still used standalone `遅れそう` in a homework-deadline scenario. That avoided the full late+bring repeat but violated the stricter blocked-frame intent.
+- The deterministic server novelty guard was tightened again after that:
+  - If recent history contains late-arrival plus what-to-bring, `generatedContentNoveltyIssues` now rejects any standalone late/遅れ/遅刻/遅い or bring/持って/持ち物/what-to-bring surface element, not only the combined frame.
+  - `scripts/ai-tiny-live-qa.mjs` now fails the same standalone blocked terms.
+  - `scripts/ai-quality-review.mjs` added an offline case proving standalone blocked late/bring surface terms are rejected.
+- No third paid sampler was run after the stricter deterministic blocker yet. Deploy this stricter guard first, then rerun only the tiny sampler if the user approves.
 - Offline verification after the fix:
   - `node --check server/grading-server.mjs` passed.
   - `node --check scripts/ai-tiny-live-qa.mjs` passed.
-  - `npm run audit:ai-quality` passed, including the new blocked late/bring prompt check.
+  - `npm run audit:ai-quality` passed, including the new blocked late/bring prompt and standalone surface-term checks.
   - `npx tsc --noEmit` passed.
   - `npm run build:web` passed.
   - `npm run validate:launch` passed with the existing bundle-id warning.

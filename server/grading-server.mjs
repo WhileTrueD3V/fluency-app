@@ -214,6 +214,10 @@ function generatedContentNoveltyIssues(body, payload) {
   if (recentLateBring && outputLateBring) {
     issues.push('Repeated recent late-arrival plus what-to-bring task frame.');
   }
+  const outputLateOrBringSurface = /(late|late arrival|apology timing|遅れ|遅刻|遅い|bring|what to bring|持って|持ち物|持っていく)/i.test(outputText);
+  if (recentLateBring && outputLateOrBringSurface) {
+    issues.push('Repeated a blocked late-arrival or what-to-bring surface element.');
+  }
 
   const recentClubChange = /(club|部活|クラブ).{0,120}(change|changed|schedule|予定|変更|変わ|変える)/i.test(recentText);
   const outputClubChange = /(club|部活|クラブ).{0,120}(change|changed|schedule|予定|変更|変わ|変える)/i.test(outputText);
