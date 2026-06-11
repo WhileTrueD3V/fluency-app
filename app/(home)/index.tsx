@@ -48,7 +48,6 @@ import { generateDailyPlan, type AIDailyPlan, type AIDailyPlanAction } from '@/u
 import { prewarmGeneratedPracticeQueues } from '@/utils/practiceContentQueue';
 import { encodeTargetSkills } from '@/utils/targetSkills';
 import {
-  chooseStrongestChallengeBoost,
   getAstroChallengeBoostState,
   getBestChallengeBoostState,
   type ChallengeBoostState,
@@ -1256,6 +1255,29 @@ function ChallengeBoostBadge({
   );
 }
 
+function ChallengeBoostCluster({
+  boosts,
+  mobile = false,
+}: {
+  boosts: ChallengeBoostState[];
+  mobile?: boolean;
+}) {
+  const activeBoosts = boosts.filter((boost) => boost.active);
+  if (activeBoosts.length === 0) return null;
+
+  return (
+    <View style={[styles.challengeBoostCluster, mobile && styles.challengeBoostClusterMobile]}>
+      {activeBoosts.map((boost) => (
+        <ChallengeBoostBadge
+          key={`${boost.source ?? 'performance'}-${boost.label}`}
+          boost={boost}
+          mobile={mobile}
+        />
+      ))}
+    </View>
+  );
+}
+
 function CoachGeneratedWorkCard({
   action,
   compact,
@@ -1664,7 +1686,7 @@ function CoachLearningHome({
   generatedActions,
   completedActionIds,
   creditsLabel,
-  challengeBoost,
+  activeBoosts,
   onPlacement,
   onOpenAnalytics,
   compact,
@@ -1684,7 +1706,7 @@ function CoachLearningHome({
   generatedActions: PlanAction[];
   completedActionIds: Set<string>;
   creditsLabel: string;
-  challengeBoost: ChallengeBoostState;
+  activeBoosts: ChallengeBoostState[];
   onPlacement: () => void;
   onOpenAnalytics: () => void;
   compact: boolean;
@@ -1816,7 +1838,7 @@ function CoachLearningHome({
                 </View>
               )}
               <View style={[(mobile || dense) && styles.levelHeroCreditStack]}>
-                {(mobile || dense) && <ChallengeBoostBadge boost={challengeBoost} mobile />}
+                {(mobile || dense) && <ChallengeBoostCluster boosts={activeBoosts} mobile />}
                 <View style={[styles.coachCreditChip, dense && styles.coachCreditChipDense, mobile && styles.coachCreditChipMobile]}>
                   <TrophyIcon size={dense ? 13 : 15} color={Colors.gold} strokeWidth={2.2} />
                   <Text style={[styles.coachCreditChipText, dense && styles.coachCreditChipTextDense, mobile && styles.coachCreditChipTextMobile]}>{mobile ? creditsLabel.replace('/100 ', ' ') : dense ? creditsLabel.replace('/100 ', ' ') : creditsLabel}</Text>
@@ -1980,7 +2002,7 @@ function CoachLearningHome({
         <View style={[styles.generatedShelfHeader, dense && styles.generatedShelfHeaderDense]}>
           <View style={styles.generatedShelfTitleWrap}>
             <Text style={[styles.generatedShelfTitle, dense && styles.generatedShelfTitleDense, mobile && styles.generatedShelfTitleMobile]}>{dense ? 'Quick reps' : 'Built for your weak spots'}</Text>
-            {!mobile && !dense && <ChallengeBoostBadge boost={challengeBoost} />}
+            {!mobile && !dense && <ChallengeBoostCluster boosts={activeBoosts} />}
           </View>
           {!compact && <Text style={styles.generatedShelfNote}>No fixed lesson library</Text>}
         </View>
@@ -2070,50 +2092,54 @@ function StartingLevelModal({
   visible: boolean;
   onSelect: (choice: StartingLevelChoice) => void;
 }) {
+  const { width, height } = useWindowDimensions();
+  const compact = width < APP_COMPACT_BREAKPOINT || height < 760;
+
   return (
     <Modal transparent visible={visible} animationType="fade">
       <View style={styles.startingLevelShade}>
-        <View style={styles.startingLevelModal} accessibilityRole="summary">
-          <View style={styles.startingLevelBadge}>
+        <View style={[styles.startingLevelModal, compact && styles.startingLevelModalCompact]} accessibilityRole="summary">
+          <View style={[styles.startingLevelBadge, compact && styles.startingLevelBadgeCompact]}>
             <StarIcon size={18} color={Colors.primary} strokeWidth={2.6} />
             <Text style={styles.startingLevelBadgeText}>Start calibration</Text>
           </View>
-          <Text style={styles.startingLevelTitle}>Where should Kibbo begin?</Text>
-          <Text style={styles.startingLevelText}>
+          <Text style={[styles.startingLevelTitle, compact && styles.startingLevelTitleCompact]}>Where should Kibbo begin?</Text>
+          <Text style={[styles.startingLevelText, compact && styles.startingLevelTextCompact]}>
             Kibbo is built for Japanese learners chasing AP-level mastery, not a first-day alphabet course.
             Pick your honest starting point and the coach will verify it through your work.
           </Text>
-          <View style={styles.startingLevelOptions}>
-            {STARTING_LEVEL_CHOICES.map((choice) => {
-              const hasBoost = choice.xpMultiplier > 1;
-              const boostText = hasBoost
-                ? choice.xpMultiplier >= 2
-                  ? 'Astro Boost · 2x XP'
-                  : `Astro Boost · +${Math.round((choice.xpMultiplier - 1) * 100)}% XP`
-                : 'No boost · Level 1';
-              return (
-                <TouchableOpacity
-                  key={choice.id}
-                  activeOpacity={0.86}
-                  onPress={() => onSelect(choice)}
-                  style={[styles.startingLevelOption, hasBoost && styles.startingLevelOptionBoost]}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Choose ${choice.label}. ${choice.description}. ${boostText}.`}
-                >
-                  <View style={styles.startingLevelOptionTop}>
-                    <Text style={styles.startingLevelOptionTitle}>{choice.label}</Text>
-                    <Text style={[styles.startingLevelOptionBoostText, hasBoost && styles.startingLevelOptionBoostTextActive]}>
-                      {boostText}
-                    </Text>
-                  </View>
-                  <Text style={styles.startingLevelOptionText}>{choice.description}</Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-          <Text style={styles.startingLevelFinePrint}>
-            Boosts are guaranteed for 15 drills, then stay only while your results still support the level you chose.
-          </Text>
+          <ScrollView
+            style={compact && styles.startingLevelScroll}
+            contentContainerStyle={styles.startingLevelScrollContent}
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={styles.startingLevelOptions}>
+              {STARTING_LEVEL_CHOICES.map((choice) => {
+                const levelText = choice.targetLevel <= 1
+                  ? 'Level 1 baseline'
+                  : `Level ${choice.targetLevel} calibration`;
+                return (
+                  <TouchableOpacity
+                    key={choice.id}
+                    activeOpacity={0.86}
+                    onPress={() => onSelect(choice)}
+                    style={styles.startingLevelOption}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Choose ${choice.label}. ${choice.description}. ${levelText}.`}
+                  >
+                    <View style={styles.startingLevelOptionTop}>
+                      <Text style={styles.startingLevelOptionTitle}>{choice.label}</Text>
+                      <Text style={styles.startingLevelOptionMeta}>{levelText}</Text>
+                    </View>
+                    <Text style={styles.startingLevelOptionText}>{choice.description}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+            <Text style={styles.startingLevelFinePrint}>
+              Kibbo uses this for your first calibration lane, then adjusts from your next 15 drills and AP reviews.
+            </Text>
+          </ScrollView>
         </View>
       </View>
     </Modal>
@@ -2198,16 +2224,24 @@ export default function HomeScreen() {
   const playerLevel = getPlayerLevel(displayedStats.totalXP);
   const xpIntoLevel = playerLevel.currentXP - playerLevel.levelStartXP;
   const xpNeeded = Math.max(1, playerLevel.nextLevelXP - playerLevel.levelStartXP);
-  const challengeBoost = useMemo(() => {
-    const performanceBoost = getBestChallengeBoostState(playerLevel.level, languageSessions);
-    const astroBoost = getAstroChallengeBoostState(
+  const performanceChallengeBoost = useMemo(
+    () => getBestChallengeBoostState(playerLevel.level, languageSessions),
+    [languageSessions, playerLevel.level],
+  );
+  const astroChallengeBoost = useMemo(
+    () => getAstroChallengeBoostState(
       playerLevel.level,
       startingLevelProfile ?? null,
       sessions,
       langCode,
-    );
-    return chooseStrongestChallengeBoost(performanceBoost, astroBoost);
-  }, [langCode, languageSessions, playerLevel.level, sessions, startingLevelProfile]);
+    ),
+    [langCode, playerLevel.level, sessions, startingLevelProfile],
+  );
+  const activeBoosts = useMemo(
+    () => [astroChallengeBoost, performanceChallengeBoost]
+      .filter((boost): boost is ChallengeBoostState => Boolean(boost?.active)),
+    [astroChallengeBoost, performanceChallengeBoost],
+  );
   const rubricSignals = buildRubricSignals({
     accuracy,
     sessions: displayedStats.totalSessions,
@@ -2596,7 +2630,7 @@ export default function HomeScreen() {
               generatedActions={generatedModeActions}
               completedActionIds={completedActionIds}
               creditsLabel={creditsLabel}
-              challengeBoost={challengeBoost}
+              activeBoosts={activeBoosts}
               onPlacement={startMiniMock}
               onOpenAnalytics={() => router.push('/analytics' as never)}
               compact={homeContentCompact}
@@ -2638,6 +2672,7 @@ const styles = StyleSheet.create({
   startingLevelModal: {
     width: '100%',
     maxWidth: 620,
+    maxHeight: '92%',
     borderRadius: 34,
     backgroundColor: Colors.card,
     borderWidth: 1,
@@ -2648,6 +2683,12 @@ const styles = StyleSheet.create({
     shadowRadius: 30,
     shadowOffset: { width: 0, height: 18 },
     gap: 14,
+  },
+  startingLevelModalCompact: {
+    maxWidth: 390,
+    borderRadius: 28,
+    padding: 18,
+    gap: 10,
   },
   startingLevelBadge: {
     alignSelf: 'flex-start',
@@ -2660,6 +2701,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     paddingHorizontal: 13,
+  },
+  startingLevelBadgeCompact: {
+    minHeight: 32,
+    paddingHorizontal: 11,
   },
   startingLevelBadgeText: {
     color: Colors.primary,
@@ -2675,11 +2720,26 @@ const styles = StyleSheet.create({
     lineHeight: 39,
     fontWeight: '900',
   },
+  startingLevelTitleCompact: {
+    fontSize: 28,
+    lineHeight: 31,
+  },
   startingLevelText: {
     color: Colors.textMuted,
     fontSize: 17,
     lineHeight: 24,
     fontWeight: '800',
+  },
+  startingLevelTextCompact: {
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  startingLevelScroll: {
+    flexShrink: 1,
+  },
+  startingLevelScrollContent: {
+    gap: 12,
+    paddingBottom: 2,
   },
   startingLevelOptions: {
     gap: 10,
@@ -2691,10 +2751,6 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
     padding: 16,
     gap: 8,
-  },
-  startingLevelOptionBoost: {
-    backgroundColor: '#F0FFFC',
-    borderColor: Colors.teal,
   },
   startingLevelOptionTop: {
     flexDirection: 'row',
@@ -2709,7 +2765,7 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     flexShrink: 1,
   },
-  startingLevelOptionBoostText: {
+  startingLevelOptionMeta: {
     color: Colors.textSub,
     fontSize: 12,
     lineHeight: 15,
@@ -2717,9 +2773,6 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 1.3,
     textAlign: 'right',
-  },
-  startingLevelOptionBoostTextActive: {
-    color: Colors.teal,
   },
   startingLevelOptionText: {
     color: Colors.textMuted,
@@ -3327,6 +3380,18 @@ const styles = StyleSheet.create({
   levelHeroCreditStack: {
     alignItems: 'flex-end',
     gap: 4,
+  },
+  challengeBoostCluster: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+    minWidth: 0,
+  },
+  challengeBoostClusterMobile: {
+    justifyContent: 'flex-end',
+    gap: 4,
+    maxWidth: 168,
   },
   challengeBoostBadge: {
     minHeight: 34,

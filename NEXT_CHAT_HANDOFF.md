@@ -182,7 +182,7 @@ Latest validation passed:
 
 Latest web export wrote:
 
-- `dist/_expo/static/js/web/entry-d84af97cdd43beabc68c25eb69ee1945.js`
+- `dist/_expo/static/js/web/entry-a0ed37f6988d320879ca860f9a047dbe.js`
 
 The preview server for the latest pass was available at `http://127.0.0.1:8083`. If it looks stale, rebuild with `npm run build:web` and restart `npm run preview:web`. The user wants the demo kept current without repeated permission prompts.
 
@@ -213,7 +213,20 @@ The newest completed work added first-open placement and fixed two launcher-stat
 - Browser preview check:
   - `http://127.0.0.1:8083/` showed the mandatory placement modal before selection.
   - Selecting `AP-bound` dismissed it and showed `Astro · 2x XP` above the credits chip in the tight preview.
-  - The local in-app browser preview now has AP-bound selected because it was used for verification. Reset app storage if the user wants to see the modal again locally.
+- The local in-app browser preview now has AP-bound selected because it was used for verification. Reset app storage if the user wants to see the modal again locally.
+
+Follow-up refinement after that:
+
+- The placement popup no longer tells users they will receive an XP boost. It only shows calibration language such as `Level 4 calibration`; the Astro Boost is still granted silently after selection.
+- The placement modal is now more responsive, with compact padding/title sizing and an internal scroll area for shorter phone screens.
+- Home now supports multiple visible active boost badges at once. If the learner has Astro Boost from placement and also earns the performance Challenge Boost, both compact boost badges can render cleanly:
+  - Mobile/tight desktop: badges wrap above the credits chip.
+  - Full desktop: badges render next to the weak-spots shelf title.
+- Reward math and generation routing still use the strongest active boost, not runaway stacked multipliers.
+- Verification after this refinement:
+  - `npx tsc --noEmit` passed.
+  - `npm run build:web` passed.
+  - `npm run validate:launch` passed.
 
 The AI server on port `8787` was running from this repo as PID `36107`, attached to another terminal. Server prompt changes require a grading-server restart to take effect. Do not casually kill/restart it from a shell that lacks API keys, because that can replace a keyed server with an unkeyed one.
 
