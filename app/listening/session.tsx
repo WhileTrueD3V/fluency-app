@@ -19,6 +19,7 @@ import {
   getPrefs,
   getRecentPromptIds,
   getSavedItems,
+  getStartingLevelProfile,
   getSessionHistory,
   getStatsForLanguage,
   hasCompletedRewardKey,
@@ -44,7 +45,12 @@ import {
   refreshGeneratedPracticeCache,
   selectPracticeItems,
 } from '@/utils/practiceContentQueue';
-import { getChallengeBoostState, type ChallengeBoostState } from '@/utils/challengeBoost';
+import {
+  chooseStrongestChallengeBoost,
+  getAstroChallengeBoostState,
+  getChallengeBoostState,
+  type ChallengeBoostState,
+} from '@/utils/challengeBoost';
 import { getPlayerLevel } from '@/utils/progression';
 import { parseTargetSkillsParam } from '@/utils/targetSkills';
 import {
@@ -170,8 +176,13 @@ export default function ListeningSession() {
       ]);
       if (cancelled) return;
       const level = getPlayerLevel(stats.totalXP);
+      const startingProfile = await getStartingLevelProfile();
+      const languageSessions = sessions.filter((session) => session.languageCode === code);
       const boost = !savedQuestion && !params.mockId
-        ? getChallengeBoostState(level.level, sessions.filter((session) => session.languageCode === code), 'listening')
+        ? chooseStrongestChallengeBoost(
+          getChallengeBoostState(level.level, languageSessions, 'listening'),
+          getAstroChallengeBoostState(level.level, startingProfile, sessions, code),
+        )
         : INACTIVE_CHALLENGE_BOOST;
       setChallengeBoost(boost);
       setSavedIds(new Set(

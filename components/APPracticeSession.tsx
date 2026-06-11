@@ -23,6 +23,7 @@ import { getLanguage, type LanguageCode } from '@/constants/languages';
 import {
   getPrefs,
   getRecentPromptIds,
+  getStartingLevelProfile,
   getSessionHistory,
   getStatsForLanguage,
   hasCompletedRewardKey,
@@ -44,7 +45,13 @@ import {
   selectPracticeItems,
 } from '@/utils/practiceContentQueue';
 import { parseTargetSkillsParam } from '@/utils/targetSkills';
-import { applyChallengeBoostXP, getChallengeBoostState, type ChallengeBoostState } from '@/utils/challengeBoost';
+import {
+  applyChallengeBoostXP,
+  chooseStrongestChallengeBoost,
+  getAstroChallengeBoostState,
+  getChallengeBoostState,
+  type ChallengeBoostState,
+} from '@/utils/challengeBoost';
 import { getPlayerLevel } from '@/utils/progression';
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
 import { useVoiceRecorder } from '@/hooks/useVoiceRecorder';
@@ -247,8 +254,13 @@ export function APPracticeSession({ mode }: { mode: APPracticeMode }) {
       ]);
       if (cancelled) return;
       const level = getPlayerLevel(stats.totalXP);
+      const startingProfile = await getStartingLevelProfile();
+      const languageSessions = sessions.filter((session) => session.languageCode === code);
       const boost = !params.promptId && !params.mockId
-        ? getChallengeBoostState(level.level, sessions.filter((session) => session.languageCode === code), mode)
+        ? chooseStrongestChallengeBoost(
+          getChallengeBoostState(level.level, languageSessions, mode),
+          getAstroChallengeBoostState(level.level, startingProfile, sessions, code),
+        )
         : INACTIVE_CHALLENGE_BOOST;
       setChallengeBoost(boost);
 

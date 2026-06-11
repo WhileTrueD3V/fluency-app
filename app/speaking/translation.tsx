@@ -20,6 +20,7 @@ import { DrillAccents, tint } from '@/constants/drillAccents';
 import {
   getPrefs,
   getRecentPromptIds,
+  getStartingLevelProfile,
   getSessionHistory,
   getStatsForLanguage,
   hasCompletedRewardKey,
@@ -42,7 +43,13 @@ import {
   uniquePracticeItems,
 } from '@/utils/practiceContentQueue';
 import { parseTargetSkillsParam } from '@/utils/targetSkills';
-import { applyChallengeBoostXP, getChallengeBoostState, type ChallengeBoostState } from '@/utils/challengeBoost';
+import {
+  applyChallengeBoostXP,
+  chooseStrongestChallengeBoost,
+  getAstroChallengeBoostState,
+  getChallengeBoostState,
+  type ChallengeBoostState,
+} from '@/utils/challengeBoost';
 import { getPlayerLevel } from '@/utils/progression';
 import { getLanguage, type LanguageCode } from '@/constants/languages';
 import { RecordButton } from '@/components/RecordButton';
@@ -295,8 +302,13 @@ export default function TranslationScreen() {
       if (promptLoadRunRef.current !== loadRun || cancelled) return;
       setLangCode(code);
       const level = getPlayerLevel(stats.totalXP);
+      const startingProfile = await getStartingLevelProfile();
+      const languageSessions = sessions.filter((session) => session.languageCode === code);
       const boost = !savedPrompt && !params.mockId
-        ? getChallengeBoostState(level.level, sessions.filter((session) => session.languageCode === code), 'speaking')
+        ? chooseStrongestChallengeBoost(
+          getChallengeBoostState(level.level, languageSessions, 'speaking'),
+          getAstroChallengeBoostState(level.level, startingProfile, sessions, code),
+        )
         : INACTIVE_CHALLENGE_BOOST;
       setChallengeBoost(boost);
 

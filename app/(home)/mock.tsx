@@ -323,7 +323,10 @@ function MockPressable({
       }}
       onPressIn={() => setPressed(true)}
       onPressOut={() => setPressed(false)}
-      onPress={onPress}
+      onPress={() => {
+        setPressed(false);
+        onPress();
+      }}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
       style={wrapperStyle}

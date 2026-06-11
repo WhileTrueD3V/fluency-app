@@ -171,6 +171,39 @@ export type MockSection = 'listening' | 'reading' | 'conversation' | 'texting';
 export type PromptHistoryType = SavedItemType;
 export type GeneratedPromptItem = ListeningQuestion | SpeakingPrompt | ReadingPassageSet | APPromptSet;
 export type CreditSpendKind = 'drill' | 'miniMock';
+export type StartingLevelChoiceId = 'absolute_novice' | 'classroom_starter' | 'course_ready' | 'ap_bound';
+
+export interface StartingLevelChoice {
+  id: StartingLevelChoiceId;
+  label: string;
+  shortLabel: string;
+  targetLevel: number;
+  xpMultiplier: number;
+  description: string;
+}
+
+export interface StartingLevelProfile {
+  choiceId: StartingLevelChoiceId;
+  targetLevel: number;
+  xpMultiplier: number;
+  minimumDrills: number;
+  failureLimit: number;
+  lowReviewLimit: number;
+  createdAt: number;
+}
+
+export interface AstroBoostProgress {
+  active: boolean;
+  choice: StartingLevelChoice;
+  completedDrills: number;
+  guaranteedDrillsRemaining: number;
+  failedQuestions: number;
+  lowReviews: number;
+  currentLevel: number;
+  targetLevel: number;
+  xpMultiplier: number;
+  reason: 'absolute_novice' | 'level_reached' | 'still_calibrating' | 'results_supported' | 'results_checked';
+}
 
 export const CREDIT_COSTS: Record<CreditSpendKind, number> = {
   drill: 1,
@@ -199,6 +232,7 @@ const KEYS = {
   ATTEMPT_MEMORY: '@fluent:attemptMemory',
   WEAK_MEMORY: '@fluent:weakMemory',
   FIRST_COMPLETION_FEEDBACK: '@fluent:firstCompletionFeedback',
+  STARTING_LEVEL_PROFILE: '@fluent:startingLevelProfile',
 } as const;
 
 const RECENT_PROMPT_LIMIT = 80;
@@ -249,6 +283,139 @@ const DEFAULT_SETTINGS: AppSettings = {
   studyReminders: false,
   readingTextSize: 'standard',
 };
+
+export const STARTING_LEVEL_CHOICES: StartingLevelChoice[] = [
+  {
+    id: 'absolute_novice',
+    label: 'Absolute Novice',
+    shortLabel: 'Novice',
+    targetLevel: 1,
+    xpMultiplier: 1,
+    description: 'I am basically starting from zero.',
+  },
+  {
+    id: 'classroom_starter',
+    label: 'Classroom Starter',
+    shortLabel: 'Starter',
+    targetLevel: 4,
+    xpMultiplier: 1.25,
+    description: 'I know some class Japanese and can handle simple phrases.',
+  },
+  {
+    id: 'course_ready',
+    label: 'Course Ready',
+    shortLabel: 'Ready',
+    targetLevel: 8,
+    xpMultiplier: 1.5,
+    description: 'I can work through familiar school-life prompts with support.',
+  },
+  {
+    id: 'ap_bound',
+    label: 'AP-bound',
+    shortLabel: 'AP-bound',
+    targetLevel: 12,
+    xpMultiplier: 2,
+    description: 'I am already practicing AP-style reading, writing, or speaking.',
+  },
+];
+
+export const ASTRO_BOOST_MINIMUM_DRILLS = 15;
+
+export function getStartingLevelChoice(choiceId: StartingLevelChoiceId): StartingLevelChoice {
+  return STARTING_LEVEL_CHOICES.find((choice) => choice.id === choiceId) ?? STARTING_LEVEL_CHOICES[0];
+}
+
+export async function getStartingLevelProfile(): Promise<StartingLevelProfile | null> {
+  try {
+    const raw = await AsyncStorage.getItem(KEYS.STARTING_LEVEL_PROFILE);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<StartingLevelProfile>;
+    if (!parsed.choiceId) return null;
+    const choice = getStartingLevelChoice(parsed.choiceId);
+    return {
+      choiceId: choice.id,
+      targetLevel: parsed.targetLevel ?? choice.targetLevel,
+      xpMultiplier: parsed.xpMultiplier ?? choice.xpMultiplier,
+      minimumDrills: parsed.minimumDrills ?? ASTRO_BOOST_MINIMUM_DRILLS,
+      failureLimit: parsed.failureLimit ?? 5,
+      lowReviewLimit: parsed.lowReviewLimit ?? 2,
+      createdAt: parsed.createdAt ?? Date.now(),
+    };
+  } catch {
+    return null;
+  }
+}
+
+export async function saveStartingLevelChoice(choiceId: StartingLevelChoiceId): Promise<StartingLevelProfile> {
+  const choice = getStartingLevelChoice(choiceId);
+  const profile: StartingLevelProfile = {
+    choiceId: choice.id,
+    targetLevel: choice.targetLevel,
+    xpMultiplier: choice.xpMultiplier,
+    minimumDrills: ASTRO_BOOST_MINIMUM_DRILLS,
+    failureLimit: 5,
+    lowReviewLimit: 2,
+    createdAt: Date.now(),
+  };
+  await AsyncStorage.setItem(KEYS.STARTING_LEVEL_PROFILE, JSON.stringify(profile));
+  return profile;
+}
+
+export function getAstroBoostProgress(
+  profile: StartingLevelProfile | null,
+  sessions: SessionRecord[],
+  languageCode: string,
+  currentLevel: number,
+): AstroBoostProgress | null {
+  if (!profile) return null;
+  const choice = getStartingLevelChoice(profile.choiceId);
+  const boostSessions = sessions.filter((session) => (
+    session.languageCode === languageCode
+    && session.date >= profile.createdAt
+    && !session.mockId
+  ));
+  const completedDrills = boostSessions.length;
+  const failedQuestions = boostSessions.reduce((sum, session) => {
+    if (session.type === 'conversation' || session.type === 'texting') {
+      return sum + (session.apReview && session.apReview.score < 4 ? 1 : 0);
+    }
+    return sum + Math.max(0, (session.total ?? 0) - (session.correct ?? 0));
+  }, 0);
+  const lowReviews = boostSessions.filter((session) => (
+    (session.type === 'conversation' || session.type === 'texting')
+    && session.apReview
+    && session.apReview.score < 4
+  )).length;
+  const guaranteedDrillsRemaining = Math.max(0, profile.minimumDrills - completedDrills);
+
+  let reason: AstroBoostProgress['reason'] = 'results_supported';
+  if (choice.targetLevel <= 1) reason = 'absolute_novice';
+  else if (currentLevel >= profile.targetLevel) reason = 'level_reached';
+  else if (guaranteedDrillsRemaining > 0) reason = 'still_calibrating';
+  else if (failedQuestions >= profile.failureLimit || lowReviews >= profile.lowReviewLimit) reason = 'results_checked';
+
+  const active = (
+    choice.targetLevel > 1
+    && currentLevel < profile.targetLevel
+    && (
+      guaranteedDrillsRemaining > 0
+      || (failedQuestions < profile.failureLimit && lowReviews < profile.lowReviewLimit)
+    )
+  );
+
+  return {
+    active,
+    choice,
+    completedDrills,
+    guaranteedDrillsRemaining,
+    failedQuestions,
+    lowReviews,
+    currentLevel,
+    targetLevel: profile.targetLevel,
+    xpMultiplier: profile.xpMultiplier,
+    reason,
+  };
+}
 
 // ---------------------------------------------------------------------------
 // Preferences

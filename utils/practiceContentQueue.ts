@@ -11,10 +11,16 @@ import {
 import type { APPromptSet } from '@/data/apPractice';
 import { buildAIPersonalizationProfile } from '@/utils/personalization';
 import { getPlayerLevel } from '@/utils/progression';
-import { getChallengeBoostState } from '@/utils/challengeBoost';
+import {
+  chooseStrongestChallengeBoost,
+  getAstroChallengeBoostState,
+  getChallengeBoostState,
+} from '@/utils/challengeBoost';
 import {
   getGeneratedPromptCache,
   getRecentPromptIds,
+  getSessionHistory,
+  getStartingLevelProfile,
   setGeneratedPromptCache,
   type GeneratedPromptItem,
   type PromptHistoryType,
@@ -286,12 +292,20 @@ function weakMemoryTargetSkills(profile: Awaited<ReturnType<typeof buildAIPerson
   });
 }
 
-function challengeCalibration(
+async function challengeCalibration(
   baseLevel: number,
   profile: Awaited<ReturnType<typeof buildAIPersonalizationProfile>>,
   mode: PromptHistoryType,
+  languageCode: LanguageCode,
 ) {
-  const boost = getChallengeBoostState(baseLevel, profile.recentAttempts, mode);
+  const [startingProfile, sessions] = await Promise.all([
+    getStartingLevelProfile(),
+    getSessionHistory(),
+  ]);
+  const boost = chooseStrongestChallengeBoost(
+    getChallengeBoostState(baseLevel, profile.recentAttempts, mode),
+    getAstroChallengeBoostState(baseLevel, startingProfile, sessions, languageCode),
+  );
 
   return {
     baseLevel,
@@ -310,9 +324,11 @@ function levelPressureGuidance({
   label,
   signal,
   boosted,
-}: ReturnType<typeof challengeCalibration>) {
+}: Awaited<ReturnType<typeof challengeCalibration>>) {
   const calibrationLine = boosted
-    ? `Challenge calibration active: displayed level ${baseLevel}, generation level ${effectiveLevel}, ${signal.samples} recent samples averaging ${signal.average}%. Use ${label} so the learner does not churn from work that feels too easy.`
+    ? label === 'Astro Boost'
+      ? `Astro Boost active from learner placement: displayed level ${baseLevel}, generation level ${effectiveLevel}. Use a fair stretch so the learner does not churn from work that feels too easy, while still checking their real ability.`
+      : `Challenge calibration active: displayed level ${baseLevel}, generation level ${effectiveLevel}, ${signal.samples} recent samples averaging ${signal.average}%. Use ${label} so the learner does not churn from work that feels too easy.`
     : `No challenge boost yet: displayed level ${baseLevel}, generation level ${effectiveLevel}. Keep work level-fit while watching for strong scores.`;
 
   if (effectiveLevel <= 3) {
@@ -378,7 +394,7 @@ export async function generatePersonalizedPracticeBatch<T extends GeneratedPromp
 
   const level = getPlayerLevel(totalXP);
   const profile = await buildAIPersonalizationProfile(languageCode);
-  const calibration = challengeCalibration(level.level, profile, mode);
+  const calibration = await challengeCalibration(level.level, profile, mode, languageCode);
   const recent = Array.from(new Set([
     ...profile.doNotRepeatIds,
     ...recentPromptIds,
@@ -433,7 +449,7 @@ export async function refreshGeneratedPracticeCache({
   const level = getPlayerLevel(totalXP);
   const recent = Array.from(new Set(recentPromptIds));
   const profile = await buildAIPersonalizationProfile(languageCode);
-  const calibration = challengeCalibration(level.level, profile, mode);
+  const calibration = await challengeCalibration(level.level, profile, mode, languageCode);
   const existing = getGeneratedPracticeMemory(mode, languageCode);
   const aiContent = await generatePracticeContent({
     mode,

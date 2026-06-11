@@ -182,9 +182,38 @@ Latest validation passed:
 
 Latest web export wrote:
 
-- `dist/_expo/static/js/web/entry-6e4ad557f818b71bc92f56f72a07cdd0.js`
+- `dist/_expo/static/js/web/entry-d84af97cdd43beabc68c25eb69ee1945.js`
 
 The preview server for the latest pass was available at `http://127.0.0.1:8083`. If it looks stale, rebuild with `npm run build:web` and restart `npm run preview:web`. The user wants the demo kept current without repeated permission prompts.
+
+## Latest Placement / Boost Work
+
+The newest completed work added first-open placement and fixed two launcher-state bugs:
+
+- Home now shows a mandatory starting-level modal until the learner answers it. Existing testers will see it once unless their browser/app storage already has `@fluent:startingLevelProfile`.
+- The modal states that Kibbo is for Japanese learners chasing AP-level mastery, not a first-day alphabet course.
+- Four starting choices are implemented in `utils/storage.ts`:
+  - `Absolute Novice`: target level 1, no XP boost.
+  - `Classroom Starter`: target level 4, `+25% XP`.
+  - `Course Ready`: target level 8, `+50% XP`.
+  - `AP-bound`: target level 12, `2x XP`.
+- Higher choices create an `Astro Boost`. It is guaranteed for 15 non-Mini-Mock drills, then remains active only while the learner has not hit the chosen target level, failed 5 questions, or received 2 AP review scores below 4.
+- Astro Boost now feeds both reward XP and generated-practice calibration:
+  - Home combines Astro Boost with the existing performance-based Challenge Boost and shows the strongest active boost.
+  - Listening, Reading, Speaking translation, AP Conversation, and AP Texting use the strongest boost for XP.
+  - Generated practice requests use Astro Boost to set a fair higher generation level without adding extra AI calls.
+  - Mini Mock remains unboosted so it stays a clean readiness signal.
+- The boost badge now appears above the credits chip on mobile and tight desktop, and next to weak-spot work on full desktop when space allows.
+- The first Home coach-picked fallback no longer says `Run the AP diagnostic` / level-test copy before AI plan loading finishes. For zero sessions, it now starts with a real `Text-chat register repair` AP warmup.
+- Home and Mini Mock interactive launchers now reset pressed state before opening credit confirmation, preventing the stuck pressed/animation state if the user cancels the credit modal.
+- Verification run:
+  - `npx tsc --noEmit` passed.
+  - `npm run build:web` passed.
+  - `npm run validate:launch` passed before the final tiny badge visibility tweak; `npx tsc --noEmit` and `npm run build:web` passed again after it.
+- Browser preview check:
+  - `http://127.0.0.1:8083/` showed the mandatory placement modal before selection.
+  - Selecting `AP-bound` dismissed it and showed `Astro · 2x XP` above the credits chip in the tight preview.
+  - The local in-app browser preview now has AP-bound selected because it was used for verification. Reset app storage if the user wants to see the modal again locally.
 
 The AI server on port `8787` was running from this repo as PID `36107`, attached to another terminal. Server prompt changes require a grading-server restart to take effect. Do not casually kill/restart it from a shell that lacks API keys, because that can replace a keyed server with an unkeyed one.
 

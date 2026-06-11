@@ -39,6 +39,7 @@ import {
 } from '@/utils/practiceContentQueue';
 import {
   getAppSettings,
+  getStartingLevelProfile,
   getPrefs,
   getRecentPromptIds,
   getSavedItems,
@@ -55,7 +56,13 @@ import {
 import { getPlayerLevel } from '@/utils/progression';
 import { LISTENING_ATTEMPT_XP, LISTENING_CORRECT_XP } from '@/utils/scoring';
 import { parseTargetSkillsParam } from '@/utils/targetSkills';
-import { applyChallengeBoostXP, getChallengeBoostState, type ChallengeBoostState } from '@/utils/challengeBoost';
+import {
+  applyChallengeBoostXP,
+  chooseStrongestChallengeBoost,
+  getAstroChallengeBoostState,
+  getChallengeBoostState,
+  type ChallengeBoostState,
+} from '@/utils/challengeBoost';
 
 const DEFAULT_PASSAGE_COUNT = 3;
 
@@ -191,8 +198,13 @@ export default function APReadingSession() {
       ]);
       if (cancelled) return;
       const level = getPlayerLevel(stats.totalXP);
+      const startingProfile = await getStartingLevelProfile();
+      const languageSessions = sessions.filter((session) => session.languageCode === code);
       const boost = !savedPassage && !params.mockId
-        ? getChallengeBoostState(level.level, sessions.filter((session) => session.languageCode === code), 'reading')
+        ? chooseStrongestChallengeBoost(
+          getChallengeBoostState(level.level, languageSessions, 'reading'),
+          getAstroChallengeBoostState(level.level, startingProfile, sessions, code),
+        )
         : INACTIVE_CHALLENGE_BOOST;
       const allowedDifficulties = allowedReadingDifficultiesForBoost(level, boost);
       setChallengeBoost(boost);

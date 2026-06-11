@@ -27,10 +27,15 @@ import {
   CREDIT_COSTS,
   getCreditUsage,
   getCreditsRemaining,
+  getStartingLevelProfile,
   getSessionHistory,
   recordPracticeSessionStart,
+  saveStartingLevelChoice,
+  STARTING_LEVEL_CHOICES,
   type CreditUsage,
   type SessionRecord,
+  type StartingLevelChoice,
+  type StartingLevelProfile,
   type SubscriptionPlan,
 } from '@/utils/storage';
 import {
@@ -42,7 +47,12 @@ import { getPlayerLevel } from '@/utils/progression';
 import { generateDailyPlan, type AIDailyPlan, type AIDailyPlanAction } from '@/utils/aiPlan';
 import { prewarmGeneratedPracticeQueues } from '@/utils/practiceContentQueue';
 import { encodeTargetSkills } from '@/utils/targetSkills';
-import { getBestChallengeBoostState, type ChallengeBoostState } from '@/utils/challengeBoost';
+import {
+  chooseStrongestChallengeBoost,
+  getAstroChallengeBoostState,
+  getBestChallengeBoostState,
+  type ChallengeBoostState,
+} from '@/utils/challengeBoost';
 import {
   APP_COMPACT_BREAKPOINT,
   DESKTOP_RAIL_NARROW_BREAKPOINT,
@@ -549,7 +559,10 @@ function InteractivePressable({
       }}
       onPressIn={() => setPressed(true)}
       onPressOut={() => setPressed(false)}
-      onPress={onPress}
+      onPress={() => {
+        setPressed(false);
+        onPress();
+      }}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
     >
@@ -1222,19 +1235,23 @@ function ChallengeBoostBadge({
   mobile?: boolean;
 }) {
   if (!boost.active) return null;
+  const isAstro = boost.source === 'astro';
+  const multiplierLabel = boost.multiplier >= 2
+    ? '2x XP'
+    : `+${Math.round((boost.multiplier - 1) * 100)}% XP`;
 
   return (
     <View
       style={[styles.challengeBoostBadge, mobile && styles.challengeBoostBadgeMobile]}
-      accessibilityLabel="Challenge Boost active. Harder generated drills award two times XP."
+      accessibilityLabel={`${isAstro ? 'Astro Boost' : 'Challenge Boost'} active. Harder generated drills award ${multiplierLabel}.`}
     >
       <View style={[styles.challengeBoostIcon, mobile && styles.challengeBoostIconMobile]}>
         <StarIcon size={mobile ? 12 : 14} color={Colors.primary} strokeWidth={2.6} />
       </View>
       <Text style={[styles.challengeBoostText, mobile && styles.challengeBoostTextMobile]}>
-        {mobile ? 'Boost' : 'Challenge Boost'}
+        {mobile ? (isAstro ? 'Astro' : 'Boost') : (isAstro ? 'Astro Boost' : 'Challenge Boost')}
       </Text>
-      <Text style={[styles.challengeBoostMultiplier, mobile && styles.challengeBoostMultiplierMobile]}>2x XP</Text>
+      <Text style={[styles.challengeBoostMultiplier, mobile && styles.challengeBoostMultiplierMobile]}>{multiplierLabel}</Text>
     </View>
   );
 }
@@ -1798,8 +1815,8 @@ function CoachLearningHome({
                   <Text style={[styles.coachSignalChipText, dense && styles.coachSignalChipTextDense, mobile && styles.coachSignalChipTextMobile]}>{dense ? weakSignal.short : weakSignal.key}</Text>
                 </View>
               )}
-              <View style={[mobile && styles.levelHeroCreditStack]}>
-                {mobile && <ChallengeBoostBadge boost={challengeBoost} mobile />}
+              <View style={[(mobile || dense) && styles.levelHeroCreditStack]}>
+                {(mobile || dense) && <ChallengeBoostBadge boost={challengeBoost} mobile />}
                 <View style={[styles.coachCreditChip, dense && styles.coachCreditChipDense, mobile && styles.coachCreditChipMobile]}>
                   <TrophyIcon size={dense ? 13 : 15} color={Colors.gold} strokeWidth={2.2} />
                   <Text style={[styles.coachCreditChipText, dense && styles.coachCreditChipTextDense, mobile && styles.coachCreditChipTextMobile]}>{mobile ? creditsLabel.replace('/100 ', ' ') : dense ? creditsLabel.replace('/100 ', ' ') : creditsLabel}</Text>
@@ -2046,6 +2063,63 @@ function CoachLearningHome({
   );
 }
 
+function StartingLevelModal({
+  visible,
+  onSelect,
+}: {
+  visible: boolean;
+  onSelect: (choice: StartingLevelChoice) => void;
+}) {
+  return (
+    <Modal transparent visible={visible} animationType="fade">
+      <View style={styles.startingLevelShade}>
+        <View style={styles.startingLevelModal} accessibilityRole="summary">
+          <View style={styles.startingLevelBadge}>
+            <StarIcon size={18} color={Colors.primary} strokeWidth={2.6} />
+            <Text style={styles.startingLevelBadgeText}>Start calibration</Text>
+          </View>
+          <Text style={styles.startingLevelTitle}>Where should Kibbo begin?</Text>
+          <Text style={styles.startingLevelText}>
+            Kibbo is built for Japanese learners chasing AP-level mastery, not a first-day alphabet course.
+            Pick your honest starting point and the coach will verify it through your work.
+          </Text>
+          <View style={styles.startingLevelOptions}>
+            {STARTING_LEVEL_CHOICES.map((choice) => {
+              const hasBoost = choice.xpMultiplier > 1;
+              const boostText = hasBoost
+                ? choice.xpMultiplier >= 2
+                  ? 'Astro Boost · 2x XP'
+                  : `Astro Boost · +${Math.round((choice.xpMultiplier - 1) * 100)}% XP`
+                : 'No boost · Level 1';
+              return (
+                <TouchableOpacity
+                  key={choice.id}
+                  activeOpacity={0.86}
+                  onPress={() => onSelect(choice)}
+                  style={[styles.startingLevelOption, hasBoost && styles.startingLevelOptionBoost]}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Choose ${choice.label}. ${choice.description}. ${boostText}.`}
+                >
+                  <View style={styles.startingLevelOptionTop}>
+                    <Text style={styles.startingLevelOptionTitle}>{choice.label}</Text>
+                    <Text style={[styles.startingLevelOptionBoostText, hasBoost && styles.startingLevelOptionBoostTextActive]}>
+                      {boostText}
+                    </Text>
+                  </View>
+                  <Text style={styles.startingLevelOptionText}>{choice.description}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+          <Text style={styles.startingLevelFinePrint}>
+            Boosts are guaranteed for 15 drills, then stay only while your results still support the level you chose.
+          </Text>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 export default function HomeScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
@@ -2060,6 +2134,7 @@ export default function HomeScreen() {
   const [creditUsage, setCreditUsage] = useState<CreditUsage | null>(null);
   const [plan, setPlan] = useState<SubscriptionPlan | null>(null);
   const [aiDailyPlan, setAiDailyPlan] = useState<AIDailyPlan | null>(null);
+  const [startingLevelProfile, setStartingLevelProfile] = useState<StartingLevelProfile | null | undefined>(undefined);
   const [creditNotice, setCreditNotice] = useState<{
     usage: CreditUsage;
     plan: SubscriptionPlan;
@@ -2081,6 +2156,7 @@ export default function HomeScreen() {
   const refreshAll = useCallback(() => {
     reload();
     getSessionHistory().then(setSessions);
+    getStartingLevelProfile().then(setStartingLevelProfile);
     loadUsage();
   }, [loadUsage, reload]);
 
@@ -2109,6 +2185,10 @@ export default function HomeScreen() {
   const accuracy = displayedStats.totalAnswered > 0
     ? Math.round((displayedStats.totalCorrect / displayedStats.totalAnswered) * 100)
     : 0;
+  const languageSessions = useMemo(
+    () => sessions.filter((session) => session.languageCode === langCode),
+    [langCode, sessions],
+  );
   const recentSessions = useMemo(
     () => sessions.filter((session) => session.languageCode === langCode).slice(0, 6),
     [langCode, sessions],
@@ -2118,13 +2198,16 @@ export default function HomeScreen() {
   const playerLevel = getPlayerLevel(displayedStats.totalXP);
   const xpIntoLevel = playerLevel.currentXP - playerLevel.levelStartXP;
   const xpNeeded = Math.max(1, playerLevel.nextLevelXP - playerLevel.levelStartXP);
-  const challengeBoost = useMemo(
-    () => getBestChallengeBoostState(
+  const challengeBoost = useMemo(() => {
+    const performanceBoost = getBestChallengeBoostState(playerLevel.level, languageSessions);
+    const astroBoost = getAstroChallengeBoostState(
       playerLevel.level,
-      sessions.filter((session) => session.languageCode === langCode),
-    ),
-    [langCode, playerLevel.level, sessions],
-  );
+      startingLevelProfile ?? null,
+      sessions,
+      langCode,
+    );
+    return chooseStrongestChallengeBoost(performanceBoost, astroBoost);
+  }, [langCode, languageSessions, playerLevel.level, sessions, startingLevelProfile]);
   const rubricSignals = buildRubricSignals({
     accuracy,
     sessions: displayedStats.totalSessions,
@@ -2193,6 +2276,12 @@ export default function HomeScreen() {
     await loadUsage();
     haptics.impact('medium');
     navigate();
+  };
+
+  const selectStartingLevel = async (choice: StartingLevelChoice) => {
+    const profile = await saveStartingLevelChoice(choice.id);
+    setStartingLevelProfile(profile);
+    haptics.impact(choice.xpMultiplier > 1 ? 'medium' : 'light');
   };
 
   const startListeningSet = (targetSkills: string[] = []) => {
@@ -2301,16 +2390,16 @@ export default function HomeScreen() {
 
   const fallbackPrimaryAction = displayedStats.totalSessions === 0
     ? {
-      id: 'diagnostic',
-      title: 'Run the AP diagnostic',
-      task: 'Mixed AP checkpoint',
-      rubric: 'Task completion' as RubricKey,
-      minutes: 18,
-      credits: 0,
-      why: 'Kibbo needs baseline evidence before it can coach your weak spots.',
+      id: 'starter-texting',
+      title: 'Text-chat register repair',
+      task: 'First AP warmup',
+      rubric: 'Language use' as RubricKey,
+      minutes: 12,
+      credits: CREDIT_COSTS.drill,
+      why: 'Start with a short AP-style reply so Kibbo can read your register and sentence control.',
       accent: Colors.primary,
-      icon: <TargetIcon size={25} color={Colors.primary} strokeWidth={2.2} />,
-      onPress: startMiniMock,
+      icon: <MessageCircleIcon size={25} color={Colors.primary} strokeWidth={2} />,
+      onPress: startTextingSet,
     }
     : weakSignal.key === 'Delivery'
       ? {
@@ -2530,11 +2619,121 @@ export default function HomeScreen() {
         onStart={confirmCreditStart}
         onComparePlans={() => setOpenSubscriptionsSignal((value) => value + 1)}
       />
+      <StartingLevelModal
+        visible={startingLevelProfile === null}
+        onSelect={selectStartingLevel}
+      />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  startingLevelShade: {
+    flex: 1,
+    backgroundColor: 'rgba(7, 18, 32, 0.58)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 18,
+  },
+  startingLevelModal: {
+    width: '100%',
+    maxWidth: 620,
+    borderRadius: 34,
+    backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    padding: 26,
+    shadowColor: '#0F1B2D',
+    shadowOpacity: 0.22,
+    shadowRadius: 30,
+    shadowOffset: { width: 0, height: 18 },
+    gap: 14,
+  },
+  startingLevelBadge: {
+    alignSelf: 'flex-start',
+    minHeight: 36,
+    borderRadius: 999,
+    backgroundColor: Colors.primaryDim,
+    borderWidth: 1,
+    borderColor: Colors.primaryGlow,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 13,
+  },
+  startingLevelBadgeText: {
+    color: Colors.primary,
+    fontSize: 13,
+    lineHeight: 16,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+    letterSpacing: 3,
+  },
+  startingLevelTitle: {
+    color: Colors.text,
+    fontSize: 36,
+    lineHeight: 39,
+    fontWeight: '900',
+  },
+  startingLevelText: {
+    color: Colors.textMuted,
+    fontSize: 17,
+    lineHeight: 24,
+    fontWeight: '800',
+  },
+  startingLevelOptions: {
+    gap: 10,
+  },
+  startingLevelOption: {
+    borderRadius: 22,
+    backgroundColor: '#F8FBFD',
+    borderWidth: 1,
+    borderColor: Colors.border,
+    padding: 16,
+    gap: 8,
+  },
+  startingLevelOptionBoost: {
+    backgroundColor: '#F0FFFC',
+    borderColor: Colors.teal,
+  },
+  startingLevelOptionTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 12,
+  },
+  startingLevelOptionTitle: {
+    color: Colors.text,
+    fontSize: 20,
+    lineHeight: 24,
+    fontWeight: '900',
+    flexShrink: 1,
+  },
+  startingLevelOptionBoostText: {
+    color: Colors.textSub,
+    fontSize: 12,
+    lineHeight: 15,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+    letterSpacing: 1.3,
+    textAlign: 'right',
+  },
+  startingLevelOptionBoostTextActive: {
+    color: Colors.teal,
+  },
+  startingLevelOptionText: {
+    color: Colors.textMuted,
+    fontSize: 14,
+    lineHeight: 19,
+    fontWeight: '800',
+  },
+  startingLevelFinePrint: {
+    color: Colors.textSub,
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
   safe: {
     flex: 1,
     backgroundColor: '#F7FAFC',
