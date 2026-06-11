@@ -182,7 +182,7 @@ Latest validation passed:
 
 Latest web export wrote:
 
-- `dist/_expo/static/js/web/entry-a0ed37f6988d320879ca860f9a047dbe.js`
+- `dist/_expo/static/js/web/entry-f2634772250bfa06bfab99c5009d3d4c.js`
 
 The preview server for the latest pass was available at `http://127.0.0.1:8083`. If it looks stale, rebuild with `npm run build:web` and restart `npm run preview:web`. The user wants the demo kept current without repeated permission prompts.
 
@@ -224,6 +224,17 @@ Follow-up refinement after that:
   - Full desktop: badges render next to the weak-spots shelf title.
 - Reward math and generation routing still use the strongest active boost, not runaway stacked multipliers.
 - Verification after this refinement:
+  - `npx tsc --noEmit` passed.
+  - `npm run build:web` passed.
+  - `npm run validate:launch` passed.
+
+Newest popup design refinement:
+
+- The starting-level modal was redesigned from a plain stacked list into a cleaner calibration sheet.
+- Desktop now uses a modern 2-by-2 option tile layout; mobile/short screens use compact sizing and a stacked scrollable layout.
+- Option tiles now use `InteractivePressable`, so they have hover lift, shadow, border feedback, pressed feedback, and animated arrow motion.
+- The popup still does not advertise XP boosts; it only shows calibration language and short readiness descriptions.
+- Verification after this redesign:
   - `npx tsc --noEmit` passed.
   - `npm run build:web` passed.
   - `npm run validate:launch` passed.

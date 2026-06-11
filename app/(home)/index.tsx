@@ -2094,45 +2094,71 @@ function StartingLevelModal({
 }) {
   const { width, height } = useWindowDimensions();
   const compact = width < APP_COMPACT_BREAKPOINT || height < 760;
+  const levelCopy: Record<StartingLevelChoice['id'], string> = {
+    absolute_novice: 'New to AP work',
+    classroom_starter: 'Some class foundation',
+    course_ready: 'Ready for guided AP reps',
+    ap_bound: 'Already near AP pressure',
+  };
 
   return (
     <Modal transparent visible={visible} animationType="fade">
       <View style={styles.startingLevelShade}>
         <View style={[styles.startingLevelModal, compact && styles.startingLevelModalCompact]} accessibilityRole="summary">
-          <View style={[styles.startingLevelBadge, compact && styles.startingLevelBadgeCompact]}>
-            <StarIcon size={18} color={Colors.primary} strokeWidth={2.6} />
-            <Text style={styles.startingLevelBadgeText}>Start calibration</Text>
+          <View style={styles.startingLevelTopRow}>
+            <View style={[styles.startingLevelBadge, compact && styles.startingLevelBadgeCompact]}>
+              <StarIcon size={18} color={Colors.primary} strokeWidth={2.6} />
+              <Text style={styles.startingLevelBadgeText}>Start calibration</Text>
+            </View>
+            {!compact && <Text style={styles.startingLevelRequired}>Required setup</Text>}
           </View>
-          <Text style={[styles.startingLevelTitle, compact && styles.startingLevelTitleCompact]}>Where should Kibbo begin?</Text>
-          <Text style={[styles.startingLevelText, compact && styles.startingLevelTextCompact]}>
-            Kibbo is built for Japanese learners chasing AP-level mastery, not a first-day alphabet course.
-            Pick your honest starting point and the coach will verify it through your work.
-          </Text>
+          <View style={styles.startingLevelHeaderCopy}>
+            <Text style={[styles.startingLevelTitle, compact && styles.startingLevelTitleCompact]}>Where should Kibbo begin?</Text>
+            <Text style={[styles.startingLevelText, compact && styles.startingLevelTextCompact]}>
+              Kibbo is for Japanese learners chasing AP-level mastery, not a first-day alphabet course.
+              Pick the lane that feels closest; the coach will verify it through your next work.
+            </Text>
+          </View>
           <ScrollView
             style={compact && styles.startingLevelScroll}
             contentContainerStyle={styles.startingLevelScrollContent}
             showsVerticalScrollIndicator={false}
           >
-            <View style={styles.startingLevelOptions}>
+            <View style={[styles.startingLevelOptions, !compact && styles.startingLevelOptionsDesktop]}>
               {STARTING_LEVEL_CHOICES.map((choice) => {
                 const levelText = choice.targetLevel <= 1
                   ? 'Level 1 baseline'
                   : `Level ${choice.targetLevel} calibration`;
                 return (
-                  <TouchableOpacity
+                  <InteractivePressable
                     key={choice.id}
-                    activeOpacity={0.86}
                     onPress={() => onSelect(choice)}
-                    style={styles.startingLevelOption}
-                    accessibilityRole="button"
+                    style={[styles.startingLevelOption, !compact && styles.startingLevelOptionDesktop]}
+                    hoverStyle={styles.startingLevelOptionHover}
+                    pressStyle={styles.startingLevelOptionPress}
                     accessibilityLabel={`Choose ${choice.label}. ${choice.description}. ${levelText}.`}
                   >
-                    <View style={styles.startingLevelOptionTop}>
-                      <Text style={styles.startingLevelOptionTitle}>{choice.label}</Text>
-                      <Text style={styles.startingLevelOptionMeta}>{levelText}</Text>
-                    </View>
-                    <Text style={styles.startingLevelOptionText}>{choice.description}</Text>
-                  </TouchableOpacity>
+                    {({ hovered }) => (
+                      <>
+                        <View style={styles.startingLevelOptionTop}>
+                          <View style={[styles.startingLevelLevelOrb, hovered && styles.startingLevelLevelOrbHover]}>
+                            <Text style={styles.startingLevelLevelOrbText}>{choice.targetLevel}</Text>
+                          </View>
+                          <View style={styles.startingLevelOptionCopy}>
+                            <Text style={styles.startingLevelOptionTitle}>{choice.label}</Text>
+                            <Text style={styles.startingLevelOptionText}>{choice.description}</Text>
+                          </View>
+                          <View style={styles.startingLevelOptionArrow}>
+                            <NudgeChevronRight active={hovered} size={22} color={hovered ? Colors.primary : Colors.textMuted} strokeWidth={2.8} />
+                          </View>
+                        </View>
+                        <View style={styles.startingLevelOptionFooter}>
+                          <Text style={styles.startingLevelOptionMeta}>{levelText}</Text>
+                          <Text style={styles.startingLevelOptionSignal}>{levelCopy[choice.id]}</Text>
+                        </View>
+                      </>
+                    )}
+                  </InteractivePressable>
                 );
               })}
             </View>
@@ -2664,35 +2690,41 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   startingLevelShade: {
     flex: 1,
-    backgroundColor: 'rgba(7, 18, 32, 0.58)',
+    backgroundColor: 'rgba(7, 18, 32, 0.62)',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 18,
+    padding: 20,
   },
   startingLevelModal: {
     width: '100%',
-    maxWidth: 620,
+    maxWidth: 760,
     maxHeight: '92%',
-    borderRadius: 34,
+    borderRadius: 32,
     backgroundColor: Colors.card,
     borderWidth: 1,
-    borderColor: Colors.border,
-    padding: 26,
+    borderColor: '#C8D7E6',
+    padding: 28,
     shadowColor: '#0F1B2D',
     shadowOpacity: 0.22,
-    shadowRadius: 30,
+    shadowRadius: 34,
     shadowOffset: { width: 0, height: 18 },
-    gap: 14,
+    gap: 16,
   },
   startingLevelModalCompact: {
-    maxWidth: 390,
-    borderRadius: 28,
+    maxWidth: 410,
+    borderRadius: 30,
     padding: 18,
-    gap: 10,
+    gap: 12,
+  },
+  startingLevelTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
   },
   startingLevelBadge: {
     alignSelf: 'flex-start',
-    minHeight: 36,
+    minHeight: 38,
     borderRadius: 999,
     backgroundColor: Colors.primaryDim,
     borderWidth: 1,
@@ -2714,10 +2746,21 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 3,
   },
+  startingLevelRequired: {
+    color: Colors.textSub,
+    fontSize: 13,
+    lineHeight: 17,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+    letterSpacing: 2.1,
+  },
+  startingLevelHeaderCopy: {
+    gap: 10,
+  },
   startingLevelTitle: {
     color: Colors.text,
-    fontSize: 36,
-    lineHeight: 39,
+    fontSize: 40,
+    lineHeight: 43,
     fontWeight: '900',
   },
   startingLevelTitleCompact: {
@@ -2725,10 +2768,11 @@ const styles = StyleSheet.create({
     lineHeight: 31,
   },
   startingLevelText: {
-    color: Colors.textMuted,
-    fontSize: 17,
-    lineHeight: 24,
+    color: Colors.textSub,
+    fontSize: 18,
+    lineHeight: 25,
     fontWeight: '800',
+    maxWidth: 660,
   },
   startingLevelTextCompact: {
     fontSize: 14,
@@ -2742,37 +2786,108 @@ const styles = StyleSheet.create({
     paddingBottom: 2,
   },
   startingLevelOptions: {
-    gap: 10,
+    gap: 12,
+  },
+  startingLevelOptionsDesktop: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
   },
   startingLevelOption: {
-    borderRadius: 22,
-    backgroundColor: '#F8FBFD',
+    borderRadius: 24,
+    backgroundColor: '#F7FAFC',
     borderWidth: 1,
     borderColor: Colors.border,
     padding: 16,
-    gap: 8,
+    gap: 12,
+    shadowColor: '#0F1B2D',
+    shadowOpacity: 0.04,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 6 },
+  },
+  startingLevelOptionDesktop: {
+    width: '48.95%',
+    minHeight: 156,
+  },
+  startingLevelOptionHover: {
+    backgroundColor: '#FFFFFF',
+    borderColor: Colors.teal,
+    shadowColor: Colors.teal,
+    shadowOpacity: 0.14,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 10 },
+  },
+  startingLevelOptionPress: {
+    backgroundColor: '#F0FFFC',
+    borderColor: Colors.primary,
   },
   startingLevelOptionTop: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: 12,
+  },
+  startingLevelLevelOrb: {
+    width: 48,
+    height: 48,
+    borderRadius: 18,
+    backgroundColor: '#EEF5F8',
+    borderWidth: 1,
+    borderColor: '#D8E4EF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  startingLevelLevelOrbHover: {
+    backgroundColor: Colors.tealDim,
+    borderColor: Colors.teal,
+  },
+  startingLevelLevelOrbText: {
+    color: Colors.text,
+    fontSize: 18,
+    lineHeight: 22,
+    fontWeight: '900',
+  },
+  startingLevelOptionCopy: {
+    flex: 1,
+    minWidth: 0,
+    gap: 5,
   },
   startingLevelOptionTitle: {
     color: Colors.text,
-    fontSize: 20,
-    lineHeight: 24,
+    fontSize: 23,
+    lineHeight: 27,
     fontWeight: '900',
     flexShrink: 1,
   },
+  startingLevelOptionArrow: {
+    width: 24,
+    alignItems: 'flex-end',
+    paddingTop: 4,
+  },
+  startingLevelOptionFooter: {
+    marginTop: 'auto',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
   startingLevelOptionMeta: {
-    color: Colors.textSub,
-    fontSize: 12,
+    color: Colors.primary,
+    fontSize: 11,
     lineHeight: 15,
     fontWeight: '900',
     textTransform: 'uppercase',
-    letterSpacing: 1.3,
+    letterSpacing: 1.7,
+    flexShrink: 0,
+  },
+  startingLevelOptionSignal: {
+    color: Colors.textMuted,
+    fontSize: 11,
+    lineHeight: 15,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+    letterSpacing: 1.2,
     textAlign: 'right',
+    flexShrink: 1,
   },
   startingLevelOptionText: {
     color: Colors.textMuted,
