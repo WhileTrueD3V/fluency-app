@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Animated,
   Modal,
+  Platform,
   Pressable,
   RefreshControl,
   SafeAreaView,
@@ -79,6 +80,10 @@ import {
   WaveformIcon,
   XIcon,
 } from '@/components/Icons';
+
+const WEB_MODAL_LAYER_STYLE = Platform.OS === 'web'
+  ? ({ position: 'fixed', left: 0, right: 0, top: 0, bottom: 0, zIndex: 10000 } as unknown as ViewStyle)
+  : null;
 
 type RubricKey = 'Task completion' | 'Delivery' | 'Language use' | 'Cultural knowledge';
 
@@ -516,6 +521,7 @@ function InteractivePressable({
   children,
   onPress,
   style,
+  wrapperStyle,
   hoverStyle,
   pressStyle,
   accessibilityLabel,
@@ -523,6 +529,7 @@ function InteractivePressable({
   children: React.ReactNode | ((state: InteractiveState) => React.ReactNode);
   onPress: () => void;
   style: StyleProp<ViewStyle> | ((state: InteractiveState) => StyleProp<ViewStyle>);
+  wrapperStyle?: StyleProp<ViewStyle>;
   hoverStyle?: StyleProp<ViewStyle>;
   pressStyle?: StyleProp<ViewStyle>;
   accessibilityLabel: string;
@@ -564,6 +571,7 @@ function InteractivePressable({
       }}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
+      style={wrapperStyle}
     >
       <Animated.View
         style={[
@@ -2103,7 +2111,7 @@ function StartingLevelModal({
 
   return (
     <Modal transparent visible={visible} animationType="fade">
-      <View style={styles.startingLevelShade}>
+      <View style={[styles.startingLevelShade, WEB_MODAL_LAYER_STYLE]}>
         <View style={[styles.startingLevelModal, compact && styles.startingLevelModalCompact]} accessibilityRole="summary">
           <View style={styles.startingLevelTopRow}>
             <View style={[styles.startingLevelBadge, compact && styles.startingLevelBadgeCompact]}>
@@ -2133,6 +2141,7 @@ function StartingLevelModal({
                   <InteractivePressable
                     key={choice.id}
                     onPress={() => onSelect(choice)}
+                    wrapperStyle={[styles.startingLevelOptionShell, !compact && styles.startingLevelOptionShellDesktop]}
                     style={[styles.startingLevelOption, !compact && styles.startingLevelOptionDesktop]}
                     hoverStyle={styles.startingLevelOptionHover}
                     pressStyle={styles.startingLevelOptionPress}
@@ -2145,8 +2154,8 @@ function StartingLevelModal({
                             <Text style={styles.startingLevelLevelOrbText}>{choice.targetLevel}</Text>
                           </View>
                           <View style={styles.startingLevelOptionCopy}>
-                            <Text style={styles.startingLevelOptionTitle}>{choice.label}</Text>
-                            <Text style={styles.startingLevelOptionText}>{choice.description}</Text>
+                            <Text style={styles.startingLevelOptionTitle} numberOfLines={2}>{choice.label}</Text>
+                            <Text style={styles.startingLevelOptionText} numberOfLines={2}>{choice.description}</Text>
                           </View>
                           <View style={styles.startingLevelOptionArrow}>
                             <NudgeChevronRight active={hovered} size={22} color={hovered ? Colors.primary : Colors.textMuted} strokeWidth={2.8} />
@@ -2694,6 +2703,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: 20,
+    zIndex: 999,
+    elevation: 999,
   },
   startingLevelModal: {
     width: '100%',
@@ -2709,6 +2720,8 @@ const styles = StyleSheet.create({
     shadowRadius: 34,
     shadowOffset: { width: 0, height: 18 },
     gap: 16,
+    zIndex: 1000,
+    elevation: 1000,
   },
   startingLevelModalCompact: {
     maxWidth: 410,
@@ -2791,8 +2804,19 @@ const styles = StyleSheet.create({
   startingLevelOptionsDesktop: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  startingLevelOptionShell: {
+    width: '100%',
+    minWidth: 0,
+  },
+  startingLevelOptionShellDesktop: {
+    width: '48.4%',
+    minWidth: 0,
   },
   startingLevelOption: {
+    width: '100%',
+    minWidth: 0,
     borderRadius: 24,
     backgroundColor: '#F7FAFC',
     borderWidth: 1,
@@ -2805,8 +2829,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 6 },
   },
   startingLevelOptionDesktop: {
-    width: '48.95%',
-    minHeight: 156,
+    minHeight: 150,
   },
   startingLevelOptionHover: {
     backgroundColor: '#FFFFFF',
@@ -2853,8 +2876,8 @@ const styles = StyleSheet.create({
   },
   startingLevelOptionTitle: {
     color: Colors.text,
-    fontSize: 23,
-    lineHeight: 27,
+    fontSize: 22,
+    lineHeight: 26,
     fontWeight: '900',
     flexShrink: 1,
   },
@@ -2869,6 +2892,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 10,
+    flexWrap: 'wrap',
   },
   startingLevelOptionMeta: {
     color: Colors.primary,

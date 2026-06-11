@@ -39,7 +39,7 @@ function sendFile(response, filePath) {
 function sendMobileDemo(response, appPath = '/') {
   const safeAppPath = appPath.startsWith('/') && !appPath.startsWith('//') ? appPath : '/';
   const frameBust = `previewBust=${Date.now()}`;
-  const frameSrc = `${safeAppPath}${safeAppPath.includes('?') ? '&' : '?'}mobilePreview=1&hideFooter=1&${frameBust}`;
+  const frameSrc = `${safeAppPath}${safeAppPath.includes('?') ? '&' : '?'}mobilePreview=1&${frameBust}`;
   response.writeHead(200, {
     'Content-Type': 'text/html; charset=utf-8',
     'Cache-Control': 'no-store, max-age=0',
@@ -122,48 +122,6 @@ function sendMobileDemo(response, appPath = '/') {
         background: var(--cream);
         display: block;
       }
-      .preview-dock {
-        position: absolute;
-        z-index: 8;
-        left: 18px;
-        right: 18px;
-        bottom: 20px;
-        height: 66px;
-        border-radius: 24px;
-        border: 1px solid #d5e0ec;
-        background: rgba(255, 255, 255, 0.985);
-        box-shadow: 0 8px 20px rgba(16, 24, 32, 0.08);
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 6px;
-        padding: 7px;
-      }
-      .preview-tab {
-        border: 0;
-        border-radius: 18px;
-        background: transparent;
-        color: #8d98a8;
-        display: grid;
-        place-items: center;
-        align-content: center;
-        gap: 1px;
-        font: inherit;
-        font-size: 10px;
-        line-height: 12px;
-        font-weight: 900;
-        cursor: pointer;
-      }
-      .preview-tab svg {
-        width: 23px;
-        height: 23px;
-      }
-      .preview-tab.active {
-        background: #fde9e6;
-        color: #d94734;
-      }
-      .preview-tab.active svg {
-        color: #d94734;
-      }
       @media (max-height: 760px) {
         body { padding: 12px; }
         .label { display: none; }
@@ -179,34 +137,8 @@ function sendMobileDemo(response, appPath = '/') {
         <div class="screen">
           <iframe id="mobile-frame" src="${frameSrc}" title=""></iframe>
         </div>
-        <nav class="preview-dock" aria-label="Mobile preview navigation">
-          <button class="preview-tab active" data-path="/" type="button" aria-label="Home">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m3 11 9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></svg>
-            <span>Home</span>
-          </button>
-          <button class="preview-tab" data-path="/library" type="button" aria-label="Library">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5z"/></svg>
-            <span>Library</span>
-          </button>
-          <button class="preview-tab" data-path="/mock" type="button" aria-label="Mock">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="1"/></svg>
-            <span>Mock</span>
-          </button>
-        </nav>
       </div>
     </main>
-    <script>
-      const frame = document.getElementById('mobile-frame');
-      const tabs = Array.from(document.querySelectorAll('.preview-tab'));
-      const sourceFor = (path) => path + (path.includes('?') ? '&' : '?') + 'mobilePreview=1&hideFooter=1&previewBust=' + Date.now();
-      tabs.forEach((tab) => {
-        tab.addEventListener('click', () => {
-          const path = tab.dataset.path || '/';
-          tabs.forEach((item) => item.classList.toggle('active', item === tab));
-          frame.src = sourceFor(path);
-        });
-      });
-    </script>
   </body>
 </html>`);
 }

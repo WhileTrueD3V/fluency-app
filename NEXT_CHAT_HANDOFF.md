@@ -182,7 +182,7 @@ Latest validation passed:
 
 Latest web export wrote:
 
-- `dist/_expo/static/js/web/entry-f2634772250bfa06bfab99c5009d3d4c.js`
+- `dist/_expo/static/js/web/entry-21b266e20b8e23aec3607bec94e2dd6a.js`
 
 The preview server for the latest pass was available at `http://127.0.0.1:8083`. If it looks stale, rebuild with `npm run build:web` and restart `npm run preview:web`. The user wants the demo kept current without repeated permission prompts.
 
@@ -227,6 +227,21 @@ Follow-up refinement after that:
   - `npx tsc --noEmit` passed.
   - `npm run build:web` passed.
   - `npm run validate:launch` passed.
+
+Latest placement-modal repair:
+
+- The first-open placement modal had a bad web layout regression where option cards collapsed into skinny columns. Root cause: the animated child view had the option width while the outer `Pressable` wrapper did not, so the row layout sized the pressables too narrowly.
+- Fixed by adding `wrapperStyle` support to Home's `InteractivePressable`, putting desktop/tight option widths on the press wrapper, and keeping the animated child at `width: '100%'`.
+- The modal layer now uses a fixed-position web overlay with high z-index/elevation so it sits above app chrome.
+- Desktop placement options are intended to render as a clean 2x2 grid; mobile placement options render as stacked full-width cards with internal scrolling on short screens.
+- The mobile preview route no longer has its own fake dock. `app/__mobile-demo.tsx` now iframes the real app with `mobilePreview=1`, and `scripts/preview-web.mjs` no longer injects an outer preview dock or `hideFooter=1`.
+- `AppFooterTabs` hides the real compact footer on main tabs until the required starting-level setup is answered, and its z-index was reduced so modals can cover it.
+- Verification after this repair:
+  - `npx tsc --noEmit` passed.
+  - `npm run build:web` passed.
+  - `npm run validate:launch` passed with the existing bundle-id warning.
+  - `rg -n "Mobile preview navigation|preview-dock|hideFooter=1" dist scripts app components` returns no matches.
+- Preview server is running again at `http://127.0.0.1:8083` from `npm run preview:web` (session `79000`). Local curl from the sandbox failed with `Operation not permitted`, but `lsof` confirmed the Node server is listening on `127.0.0.1:8083`.
 
 Newest popup design refinement:
 

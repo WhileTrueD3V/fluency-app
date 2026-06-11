@@ -1,9 +1,10 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Modal, Platform, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View, type ViewStyle } from 'react-native';
 import { useLocalSearchParams, usePathname, useRouter } from 'expo-router';
 import { Colors } from '@/constants/colors';
 import { BookOpenIcon, HomeIcon, TargetIcon, XIcon } from '@/components/Icons';
 import { KibboLogo } from '@/components/KibboLogo';
+import { getStartingLevelProfile, type StartingLevelProfile } from '@/utils/storage';
 
 export const APP_COMPACT_BREAKPOINT = 900;
 export const DESKTOP_RAIL_WIDTH = 232;
@@ -191,6 +192,7 @@ export function AppFooterTabs() {
   const params = useLocalSearchParams<{ hideFooter?: string }>();
   const { width } = useWindowDimensions();
   const isCompact = isCompactWidth(width);
+  const [startingLevelProfile, setStartingLevelProfile] = useState<StartingLevelProfile | null | undefined>(undefined);
   const isDrillRoute = useMemo(
     () => DRILL_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`)),
     [pathname],
@@ -203,10 +205,42 @@ export function AppFooterTabs() {
     () => MAIN_FOOTER_PATHS.some((path) => pathname === path),
     [pathname],
   );
+  const isMobileDemoShell = Platform.OS === 'web'
+    && typeof window !== 'undefined'
+    && window.location.pathname.includes('/__mobile-demo');
+
+  useEffect(() => {
+    if (!isMainFooterRoute) {
+      setStartingLevelProfile(undefined);
+      return undefined;
+    }
+
+    let mounted = true;
+    let interval: ReturnType<typeof setInterval> | undefined;
+    const refreshStartingProfile = () => {
+      getStartingLevelProfile().then((profile) => {
+        if (!mounted) return;
+        setStartingLevelProfile(profile);
+        if (profile && interval) {
+          clearInterval(interval);
+          interval = undefined;
+        }
+      });
+    };
+
+    refreshStartingProfile();
+    interval = setInterval(refreshStartingProfile, 450);
+    return () => {
+      mounted = false;
+      if (interval) clearInterval(interval);
+    };
+  }, [isMainFooterRoute]);
 
   if (!isDrillRoute && !isDirectFooterRoute && !isMainFooterRoute) return null;
+  if (isMobileDemoShell) return null;
   if (!isCompact) return null;
   if (Platform.OS === 'web' && params.hideFooter === '1') return null;
+  if (isMainFooterRoute && startingLevelProfile == null) return null;
 
   const goToTarget = (target: FooterTarget) => {
     router.replace(target.href);
@@ -283,7 +317,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    zIndex: 220,
+    zIndex: 36,
     alignItems: 'center',
     backgroundColor: Colors.card,
   },
@@ -300,7 +334,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.07,
     shadowRadius: 18,
     shadowOffset: { width: 0, height: 5 },
-    elevation: 220,
+    elevation: 36,
   },
   desktopRail: {
     position: 'absolute',
