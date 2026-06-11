@@ -359,6 +359,7 @@ function evaluateOfflinePromptSafety() {
   return [
     { label: 'daily/content prompts include hard novelty constraints', pass: /Hard novelty constraints/.test(promptText) },
     { label: 'content prompt says same skill but different situation', pass: /same weak skill|Repair the same weak skill/i.test(promptText) },
+    { label: 'content prompt includes blocked late/bring frame terms', pass: promptText.includes('BLOCKED FRAME: Recent work already used late-arrival plus what-to-bring logic') && promptText.includes('do not output late/late arrival/apology timing') },
     { label: 'content prompt includes native casual Japanese guidance', pass: /んだけど|peer-casual|classmate/i.test(promptText) },
     { label: 'review prompt includes native peer-style coaching', pass: /native peer|りょ|おけ|まじ/i.test(promptText) },
     { label: 'duplicate late/bring task is rejected offline', pass: duplicateIssues.length > 0 },

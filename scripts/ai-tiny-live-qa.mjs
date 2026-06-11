@@ -197,24 +197,37 @@ const cases = [
 ];
 
 const results = [];
+let runError = null;
 for (const [name, endpoint, payload] of cases) {
-  const body = await postJson(endpoint, payload);
-  results.push({ name, endpoint, body });
+  try {
+    const body = await postJson(endpoint, payload);
+    results.push({ name, endpoint, ok: true, body });
+  } catch (error) {
+    runError = {
+      name,
+      endpoint,
+      message: error instanceof Error ? error.message : String(error),
+    };
+    results.push({ name, endpoint, ok: false, error: runError.message });
+    break;
+  }
 }
 
 const checks = {
-  dailyPlanHasActions: Array.isArray(results[0].body?.actions) && results[0].body.actions.length > 0,
-  readingHasQuestions: Array.isArray(results[1].body?.items) && results[1].body.items.some((item) => Array.isArray(item.questions)),
-  textingHasFourTurns: Array.isArray(results[2].body?.items) && results[2].body.items.every((item) => Array.isArray(item.prompts) && item.prompts.length === 4),
+  allCallsCompleted: results.length === cases.length && results.every((result) => result.ok),
+  dailyPlanHasActions: Array.isArray(results[0]?.body?.actions) && results[0].body.actions.length > 0,
+  readingHasQuestions: Array.isArray(results[1]?.body?.items) && results[1].body.items.some((item) => Array.isArray(item.questions)),
+  textingHasFourTurns: Array.isArray(results[2]?.body?.items) && results[2].body.items.every((item) => Array.isArray(item.prompts) && item.prompts.length === 4),
   noBannedRepeat: results.slice(1).every((result) => hasNoBannedRepeat(result.body)),
   hasJapanese: results.slice(1).every((result) => hasJapanese(result.body)),
-  reviewHasTurnFeedback: Array.isArray(results[3].body?.turns) && results[3].body.turns.length > 0,
-  reviewHasNativeCasualUpgrade: hasNativeCasual(results[3].body),
+  reviewHasTurnFeedback: Array.isArray(results[3]?.body?.turns) && results[3].body.turns.length > 0,
+  reviewHasNativeCasualUpgrade: hasNativeCasual(results[3]?.body),
 };
 
 const report = {
   generatedAt: new Date().toISOString(),
   serverUrl: SERVER_URL,
+  error: runError,
   health: {
     provider: health.provider,
     contentModel: health.openai?.contentModel,
@@ -238,6 +251,7 @@ const md = [
   '## Checks',
   '',
   ...Object.entries(checks).map(([key, pass]) => `- ${key}: ${pass ? 'yes' : 'no'}`),
+  ...(runError ? ['', '## Error', '', `- ${runError.name}: ${runError.message}`] : []),
   '',
   '## Samples',
   '',
@@ -245,7 +259,7 @@ const md = [
     `### ${result.name}`,
     '',
     '```json',
-    compactSample(result.body),
+    compactSample(result.ok ? result.body : { error: result.error }),
     '```',
     '',
   ]),
@@ -260,6 +274,6 @@ console.log(JSON.stringify({
   ],
 }, null, 2));
 
-if (Object.values(checks).some((pass) => !pass)) {
+if (runError || Object.values(checks).some((pass) => !pass)) {
   process.exitCode = 1;
 }

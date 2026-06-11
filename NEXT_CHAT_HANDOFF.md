@@ -61,6 +61,26 @@ Latest quality audit work:
 - `server/grading-server.mjs` now retries generated content once when the first result fails novelty checks, with explicit "same skill, different situation" guidance. If the retry still fails, the server rejects the content instead of letting stale content into the app.
 - `npm run audit:ai-quality` now runs offline prompt/guard checks by default and includes a gate proving the retry prompt changes scenario and answer logic.
 - No live paid AI calls were made after that tiny QA attempt. Latest logged usage remains 48 calls / about `4.2491` cents lifetime provider spend.
+- On June 11, 2026, production `/api/health` was checked again at `https://kibbo-language-master.vercel.app/api/health` and returned safe OpenAI config:
+  - `provider: openai`
+  - `hasKey: true`
+  - `contentModel: gpt-4.1-nano`
+  - `eliteReviewModel: gpt-4.1-mini`
+  - `costControls.enforceCostCap: true`
+- A tiny production sampler was started with `AI_SERVER_URL=https://kibbo-language-master.vercel.app/api npm run audit:ai-tiny-live`. It stopped early on the texting generation step because production returned `502 AI_CONTENT_REPEAT` for a repeated late-arrival plus what-to-bring frame after retry. That means the server guard correctly blocked stale content instead of letting it into the app.
+- After that failure, `server/grading-server.mjs` was tightened again:
+  - `blockedFrameGuidance(payload)` now adds explicit blocked-frame terms when recent history contains late-arrival plus what-to-bring or club/schedule-change patterns.
+  - For late/bring history, content prompts now explicitly forbid late/遅れ/遅刻/遅い and bring/持って/持ち物/what-to-bring terms in title, situation, prompts, model answers, questions, choices, and quality notes.
+  - Retry prompts now include the same explicit ban when the rejected issue is late-arrival plus what-to-bring.
+- `scripts/ai-tiny-live-qa.mjs` now writes partial JSON/Markdown reports even when a live sampler fails, instead of losing the successful earlier cases.
+- No second paid sampler was run after this fix yet. Deploy the new server prompt first, then rerun only the tiny sampler if the user approves.
+- Offline verification after the fix:
+  - `node --check server/grading-server.mjs` passed.
+  - `node --check scripts/ai-tiny-live-qa.mjs` passed.
+  - `npm run audit:ai-quality` passed, including the new blocked late/bring prompt check.
+  - `npx tsc --noEmit` passed.
+  - `npm run build:web` passed.
+  - `npm run validate:launch` passed with the existing bundle-id warning.
 
 Before another broad live QA pass, prefer targeted two-call checks or inspect generated outputs first to avoid wasting the user's prepaid test credits.
 

@@ -257,6 +257,7 @@ function contentRetryPayload(payload, noveltyIssues) {
       `Rejected novelty issue(s): ${noveltyIssues.join(' | ')}`,
       'Generate the same weak-skill repair through a clearly different situation, source type, speech act, answer logic, nouns, and requested object.',
       'Do not use schedule-change, late-arrival, what-to-bring, train/platform, cafe flyer, or store-price/payment logic unless the profile has no adjacent recent history.',
+      'If the rejected issue mentions late-arrival plus what-to-bring, the retry must not contain late/遅れ/遅刻/遅い or bring/持って/持ち物/what to bring anywhere in title, situation, prompts, modelAnswers, questions, choices, or qualityNotes.',
     ],
   };
 }
@@ -821,6 +822,33 @@ function noRepeatGuidance(payload) {
   ];
 }
 
+function blockedFrameGuidance(payload) {
+  const recentText = noveltyTextForPayload(payload);
+  if (!recentText) return [];
+
+  const lines = [];
+  const recentLateBring = /(late|遅れ|遅刻).{0,140}(bring|what to bring|持ち|持って)|(bring|what to bring|持ち|持って).{0,140}(late|遅れ|遅刻)/i.test(recentText);
+  if (recentLateBring) {
+    lines.push(
+      'BLOCKED FRAME: Recent work already used late-arrival plus what-to-bring logic.',
+      'For this request, do not output late/late arrival/apology timing/遅れ/遅刻/遅い, and do not output bring/what to bring/持って/持ち物/持っていく in title, situation, prompts, modelAnswers, questions, choices, or qualityNotes.',
+      'Repair the same casual-register/task-completion weakness through a new communicative job: borrow notes, ask for presentation feedback, choose a practice place, confirm a study time, clarify homework instructions, compare club roles, coordinate cleanup duty, or ask someone to check a draft.',
+      'The required learner action must be different from apologizing for lateness and different from asking what object to bring.',
+    );
+  }
+
+  const recentClubChange = /(club|部活|クラブ).{0,120}(change|changed|schedule|予定|変更|変わ|変える)/i.test(recentText);
+  if (recentClubChange) {
+    lines.push(
+      'BLOCKED FRAME: Recent reading work already used a club/schedule-change reason notice.',
+      'For this request, do not output another club meeting change, schedule change, or “why did the meeting change?” reading task.',
+      'Repair evidence/detail reading through eligibility, deadlines, required steps, exceptions, location rules, consequences, permission slips, or lost-item procedures.',
+    );
+  }
+
+  return lines;
+}
+
 function contentGenerationPrompt(payload) {
   const schemaRules = payload?.mode === 'listening'
     ? [
@@ -901,6 +929,7 @@ function contentGenerationPrompt(payload) {
     ...spokenJapaneseNaturalnessGuidance(),
     ...casualYouthJapaneseGuidance(),
     ...noRepeatGuidance(payload),
+    ...blockedFrameGuidance(payload),
     ...schemaRules,
     'Return only JSON with this shape:',
     '{"items":[...],"qualityNotes":["string"]}',
