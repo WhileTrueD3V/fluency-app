@@ -84,6 +84,9 @@ import {
 const WEB_MODAL_LAYER_STYLE = Platform.OS === 'web'
   ? ({ position: 'fixed', left: 0, right: 0, top: 0, bottom: 0, zIndex: 10000 } as unknown as ViewStyle)
   : null;
+const WEB_NO_OUTLINE_STYLE = Platform.OS === 'web'
+  ? ({ outlineStyle: 'none' } as unknown as ViewStyle)
+  : null;
 
 type RubricKey = 'Task completion' | 'Delivery' | 'Language use' | 'Cultural knowledge';
 
@@ -2102,11 +2105,42 @@ function StartingLevelModal({
 }) {
   const { width, height } = useWindowDimensions();
   const compact = width < APP_COMPACT_BREAKPOINT || height < 760;
-  const levelCopy: Record<StartingLevelChoice['id'], string> = {
-    absolute_novice: 'New to AP work',
-    classroom_starter: 'Some class foundation',
-    course_ready: 'Ready for guided AP reps',
-    ap_bound: 'Already near AP pressure',
+  const veryCompact = compact && height < 720;
+  const laneCopy: Record<StartingLevelChoice['id'], {
+    accent: string;
+    border: string;
+    bg: string;
+    summary: string;
+    signal: string;
+  }> = {
+    absolute_novice: {
+      accent: Colors.teal,
+      border: '#BDEAE5',
+      bg: '#F4FFFD',
+      summary: 'Starting from basics.',
+      signal: 'New to AP work',
+    },
+    classroom_starter: {
+      accent: Colors.primary,
+      border: '#F1C8C2',
+      bg: '#FFF8F7',
+      summary: 'Simple classroom Japanese.',
+      signal: 'Some class foundation',
+    },
+    course_ready: {
+      accent: Colors.gold,
+      border: '#F4D98E',
+      bg: '#FFFCF1',
+      summary: 'Familiar school prompts.',
+      signal: 'Guided AP reps',
+    },
+    ap_bound: {
+      accent: Colors.ink,
+      border: '#CBD6E3',
+      bg: '#F6F9FC',
+      summary: 'Already doing AP tasks.',
+      signal: 'Near AP pressure',
+    },
   };
 
   return (
@@ -2116,24 +2150,34 @@ function StartingLevelModal({
           <View style={styles.startingLevelTopRow}>
             <View style={[styles.startingLevelBadge, compact && styles.startingLevelBadgeCompact]}>
               <StarIcon size={18} color={Colors.primary} strokeWidth={2.6} />
-              <Text style={styles.startingLevelBadgeText}>Start calibration</Text>
+              <Text style={styles.startingLevelBadgeText}>{compact ? 'Calibration' : 'Start calibration'}</Text>
             </View>
             {!compact && <Text style={styles.startingLevelRequired}>Required setup</Text>}
           </View>
-          <View style={styles.startingLevelHeaderCopy}>
-            <Text style={[styles.startingLevelTitle, compact && styles.startingLevelTitleCompact]}>Where should Kibbo begin?</Text>
-            <Text style={[styles.startingLevelText, compact && styles.startingLevelTextCompact]}>
-              Kibbo is for Japanese learners chasing AP-level mastery, not a first-day alphabet course.
-              Pick the lane that feels closest; the coach will verify it through your next work.
-            </Text>
+          <View style={[styles.startingLevelHero, compact && styles.startingLevelHeroCompact]}>
+            {!compact && (
+              <View style={styles.startingLevelHeroMark}>
+                <TargetIcon size={30} color={Colors.teal} strokeWidth={2.3} />
+              </View>
+            )}
+            <View style={styles.startingLevelHeaderCopy}>
+              <Text style={[styles.startingLevelTitle, compact && styles.startingLevelTitleCompact]}>
+                Where should Kibbo begin?
+              </Text>
+              <Text style={[styles.startingLevelText, compact && styles.startingLevelTextCompact]}>
+                Kibbo is for Japanese learners chasing AP-level mastery, not a first-day alphabet course.
+                Pick the lane that feels closest; the coach will verify it through your next work.
+              </Text>
+            </View>
           </View>
           <ScrollView
-            style={compact && styles.startingLevelScroll}
-            contentContainerStyle={styles.startingLevelScrollContent}
+            style={[compact && styles.startingLevelScroll, WEB_NO_OUTLINE_STYLE]}
+            contentContainerStyle={[styles.startingLevelScrollContent, veryCompact && styles.startingLevelScrollContentTight]}
             showsVerticalScrollIndicator={false}
           >
             <View style={[styles.startingLevelOptions, !compact && styles.startingLevelOptionsDesktop]}>
               {STARTING_LEVEL_CHOICES.map((choice) => {
+                const lane = laneCopy[choice.id];
                 const levelText = choice.targetLevel <= 1
                   ? 'Level 1 baseline'
                   : `Level ${choice.targetLevel} calibration`;
@@ -2141,29 +2185,53 @@ function StartingLevelModal({
                   <InteractivePressable
                     key={choice.id}
                     onPress={() => onSelect(choice)}
-                    wrapperStyle={[styles.startingLevelOptionShell, !compact && styles.startingLevelOptionShellDesktop]}
-                    style={[styles.startingLevelOption, !compact && styles.startingLevelOptionDesktop]}
-                    hoverStyle={styles.startingLevelOptionHover}
-                    pressStyle={styles.startingLevelOptionPress}
+                    wrapperStyle={[
+                      WEB_NO_OUTLINE_STYLE,
+                      styles.startingLevelOptionShell,
+                      !compact && styles.startingLevelOptionShellDesktop,
+                    ]}
+                    style={[
+                      styles.startingLevelOption,
+                      compact && styles.startingLevelOptionCompact,
+                      !compact && styles.startingLevelOptionDesktop,
+                      { backgroundColor: lane.bg, borderColor: lane.border },
+                    ]}
+                    hoverStyle={[styles.startingLevelOptionHover, { borderColor: lane.accent, shadowColor: lane.accent }]}
+                    pressStyle={[styles.startingLevelOptionPress, { borderColor: lane.accent }]}
                     accessibilityLabel={`Choose ${choice.label}. ${choice.description}. ${levelText}.`}
                   >
                     {({ hovered }) => (
                       <>
-                        <View style={styles.startingLevelOptionTop}>
-                          <View style={[styles.startingLevelLevelOrb, hovered && styles.startingLevelLevelOrbHover]}>
+                        <View style={[styles.startingLevelOptionAccent, { backgroundColor: lane.accent }]} />
+                        <View style={[styles.startingLevelOptionTop, compact && styles.startingLevelOptionTopCompact]}>
+                          <View
+                            style={[
+                              styles.startingLevelLevelOrb,
+                              compact && styles.startingLevelLevelOrbCompact,
+                              { borderColor: `${lane.accent}55`, backgroundColor: hovered ? `${lane.accent}16` : '#FFFFFF' },
+                            ]}
+                          >
                             <Text style={styles.startingLevelLevelOrbText}>{choice.targetLevel}</Text>
                           </View>
                           <View style={styles.startingLevelOptionCopy}>
-                            <Text style={styles.startingLevelOptionTitle} numberOfLines={2}>{choice.label}</Text>
-                            <Text style={styles.startingLevelOptionText} numberOfLines={2}>{choice.description}</Text>
+                            <View style={styles.startingLevelOptionTitleRow}>
+                              <Text style={[styles.startingLevelOptionTitle, compact && styles.startingLevelOptionTitleCompact]} numberOfLines={compact ? 2 : 1}>
+                                {choice.label}
+                              </Text>
+                            </View>
+                            <Text style={[styles.startingLevelOptionText, compact && styles.startingLevelOptionTextCompact]} numberOfLines={compact ? 2 : 3}>
+                              {compact ? lane.summary : choice.description}
+                            </Text>
                           </View>
                           <View style={styles.startingLevelOptionArrow}>
-                            <NudgeChevronRight active={hovered} size={22} color={hovered ? Colors.primary : Colors.textMuted} strokeWidth={2.8} />
+                            <NudgeChevronRight active={hovered} size={compact ? 19 : 22} color={hovered ? lane.accent : Colors.textMuted} strokeWidth={2.8} />
                           </View>
                         </View>
                         <View style={styles.startingLevelOptionFooter}>
-                          <Text style={styles.startingLevelOptionMeta}>{levelText}</Text>
-                          <Text style={styles.startingLevelOptionSignal}>{levelCopy[choice.id]}</Text>
+                          <View style={styles.startingLevelOptionLevelPill}>
+                            <Text style={styles.startingLevelOptionLevelPillText}>{levelText}</Text>
+                          </View>
+                          <Text style={styles.startingLevelOptionSignal}>{lane.signal}</Text>
                         </View>
                       </>
                     )}
@@ -2171,9 +2239,12 @@ function StartingLevelModal({
                 );
               })}
             </View>
-            <Text style={styles.startingLevelFinePrint}>
-              Kibbo uses this for your first calibration lane, then adjusts from your next 15 drills and AP reviews.
-            </Text>
+            <View style={styles.startingLevelFinePrintBox}>
+              <TargetIcon size={compact ? 15 : 17} color={Colors.teal} strokeWidth={2.2} />
+              <Text style={[styles.startingLevelFinePrint, compact && styles.startingLevelFinePrintCompact]}>
+                Kibbo uses this only as the first lane, then adjusts from your next 15 drills and AP reviews.
+              </Text>
+            </View>
           </ScrollView>
         </View>
       </View>
@@ -2699,35 +2770,36 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   startingLevelShade: {
     flex: 1,
-    backgroundColor: 'rgba(7, 18, 32, 0.62)',
+    backgroundColor: 'rgba(7, 18, 32, 0.64)',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 20,
+    padding: 18,
     zIndex: 999,
     elevation: 999,
   },
   startingLevelModal: {
     width: '100%',
-    maxWidth: 760,
+    maxWidth: 900,
     maxHeight: '92%',
     borderRadius: 32,
     backgroundColor: Colors.card,
     borderWidth: 1,
     borderColor: '#C8D7E6',
-    padding: 28,
+    padding: 30,
     shadowColor: '#0F1B2D',
-    shadowOpacity: 0.22,
-    shadowRadius: 34,
-    shadowOffset: { width: 0, height: 18 },
-    gap: 16,
+    shadowOpacity: 0.2,
+    shadowRadius: 38,
+    shadowOffset: { width: 0, height: 20 },
+    gap: 18,
     zIndex: 1000,
     elevation: 1000,
   },
   startingLevelModalCompact: {
-    maxWidth: 410,
-    borderRadius: 30,
-    padding: 18,
-    gap: 12,
+    maxWidth: 392,
+    maxHeight: '94%',
+    borderRadius: 28,
+    padding: 15,
+    gap: 10,
   },
   startingLevelTopRow: {
     flexDirection: 'row',
@@ -2737,27 +2809,27 @@ const styles = StyleSheet.create({
   },
   startingLevelBadge: {
     alignSelf: 'flex-start',
-    minHeight: 38,
+    minHeight: 36,
     borderRadius: 999,
     backgroundColor: Colors.primaryDim,
     borderWidth: 1,
     borderColor: Colors.primaryGlow,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 13,
+    gap: 7,
+    paddingHorizontal: 12,
   },
   startingLevelBadgeCompact: {
-    minHeight: 32,
-    paddingHorizontal: 11,
+    minHeight: 31,
+    paddingHorizontal: 10,
   },
   startingLevelBadgeText: {
     color: Colors.primary,
-    fontSize: 13,
-    lineHeight: 16,
+    fontSize: 12,
+    lineHeight: 15,
     fontWeight: '900',
     textTransform: 'uppercase',
-    letterSpacing: 3,
+    letterSpacing: 2.5,
   },
   startingLevelRequired: {
     color: Colors.textSub,
@@ -2768,100 +2840,140 @@ const styles = StyleSheet.create({
     letterSpacing: 2.1,
   },
   startingLevelHeaderCopy: {
-    gap: 10,
+    flex: 1,
+    minWidth: 0,
+    gap: 9,
+  },
+  startingLevelHero: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  startingLevelHeroCompact: {
+    gap: 0,
+  },
+  startingLevelHeroMark: {
+    width: 68,
+    height: 68,
+    borderRadius: 24,
+    backgroundColor: Colors.tealDim,
+    borderWidth: 1,
+    borderColor: '#BFE9E5',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: Colors.teal,
+    shadowOpacity: 0.1,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 10 },
   },
   startingLevelTitle: {
     color: Colors.text,
-    fontSize: 40,
-    lineHeight: 43,
+    fontSize: 42,
+    lineHeight: 44,
     fontWeight: '900',
   },
   startingLevelTitleCompact: {
-    fontSize: 28,
-    lineHeight: 31,
+    fontSize: 27,
+    lineHeight: 30,
   },
   startingLevelText: {
     color: Colors.textSub,
-    fontSize: 18,
-    lineHeight: 25,
+    fontSize: 17,
+    lineHeight: 24,
     fontWeight: '800',
-    maxWidth: 660,
+    maxWidth: 710,
   },
   startingLevelTextCompact: {
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 13,
+    lineHeight: 18,
   },
   startingLevelScroll: {
     flexShrink: 1,
   },
   startingLevelScrollContent: {
-    gap: 12,
-    paddingBottom: 2,
+    gap: 13,
+    paddingBottom: 1,
+  },
+  startingLevelScrollContentTight: {
+    gap: 7,
   },
   startingLevelOptions: {
-    gap: 12,
+    gap: 10,
   },
   startingLevelOptionsDesktop: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
+    gap: 14,
   },
   startingLevelOptionShell: {
     width: '100%',
     minWidth: 0,
   },
   startingLevelOptionShellDesktop: {
-    width: '48.4%',
+    width: '49%',
     minWidth: 0,
   },
   startingLevelOption: {
     width: '100%',
     minWidth: 0,
-    borderRadius: 24,
-    backgroundColor: '#F7FAFC',
+    position: 'relative',
+    overflow: 'hidden',
+    borderRadius: 22,
     borderWidth: 1,
-    borderColor: Colors.border,
-    padding: 16,
-    gap: 12,
+    padding: 15,
+    gap: 11,
     shadowColor: '#0F1B2D',
-    shadowOpacity: 0.04,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.045,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 7 },
+  },
+  startingLevelOptionCompact: {
+    borderRadius: 21,
+    padding: 11,
+    gap: 6,
   },
   startingLevelOptionDesktop: {
-    minHeight: 150,
+    minHeight: 132,
   },
   startingLevelOptionHover: {
     backgroundColor: '#FFFFFF',
-    borderColor: Colors.teal,
-    shadowColor: Colors.teal,
-    shadowOpacity: 0.14,
+    shadowOpacity: 0.16,
     shadowRadius: 18,
-    shadowOffset: { width: 0, height: 10 },
+    shadowOffset: { width: 0, height: 11 },
   },
   startingLevelOptionPress: {
     backgroundColor: '#F0FFFC',
-    borderColor: Colors.primary,
+  },
+  startingLevelOptionAccent: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 5,
+    opacity: 0.86,
   },
   startingLevelOptionTop: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     gap: 12,
   },
+  startingLevelOptionTopCompact: {
+    gap: 9,
+  },
   startingLevelLevelOrb: {
-    width: 48,
-    height: 48,
+    width: 50,
+    height: 50,
     borderRadius: 18,
-    backgroundColor: '#EEF5F8',
     borderWidth: 1,
-    borderColor: '#D8E4EF',
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
   },
-  startingLevelLevelOrbHover: {
-    backgroundColor: Colors.tealDim,
-    borderColor: Colors.teal,
+  startingLevelLevelOrbCompact: {
+    width: 42,
+    height: 42,
+    borderRadius: 16,
   },
   startingLevelLevelOrbText: {
     color: Colors.text,
@@ -2874,17 +2986,44 @@ const styles = StyleSheet.create({
     minWidth: 0,
     gap: 5,
   },
+  startingLevelOptionTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
   startingLevelOptionTitle: {
     color: Colors.text,
-    fontSize: 22,
-    lineHeight: 26,
+    fontSize: 20,
+    lineHeight: 24,
     fontWeight: '900',
     flexShrink: 1,
   },
+  startingLevelOptionTitleCompact: {
+    fontSize: 20,
+    lineHeight: 22,
+  },
+  startingLevelOptionLevelPill: {
+    borderRadius: 999,
+    backgroundColor: '#FFFFFFCC',
+    borderWidth: 1,
+    borderColor: Colors.border,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    flexShrink: 0,
+  },
+  startingLevelOptionLevelPillText: {
+    color: Colors.textSub,
+    fontSize: 10,
+    lineHeight: 12,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+    letterSpacing: 1.1,
+  },
   startingLevelOptionArrow: {
-    width: 24,
+    width: 22,
     alignItems: 'flex-end',
-    paddingTop: 4,
+    flexShrink: 0,
   },
   startingLevelOptionFooter: {
     marginTop: 'auto',
@@ -2896,35 +3035,56 @@ const styles = StyleSheet.create({
   },
   startingLevelOptionMeta: {
     color: Colors.primary,
-    fontSize: 11,
-    lineHeight: 15,
+    fontSize: 10,
+    lineHeight: 13,
     fontWeight: '900',
     textTransform: 'uppercase',
-    letterSpacing: 1.7,
+    letterSpacing: 1.3,
     flexShrink: 0,
   },
   startingLevelOptionSignal: {
     color: Colors.textMuted,
-    fontSize: 11,
-    lineHeight: 15,
+    fontSize: 10,
+    lineHeight: 13,
     fontWeight: '900',
     textTransform: 'uppercase',
-    letterSpacing: 1.2,
+    letterSpacing: 1.1,
     textAlign: 'right',
     flexShrink: 1,
   },
   startingLevelOptionText: {
     color: Colors.textMuted,
-    fontSize: 14,
-    lineHeight: 19,
+    fontSize: 13,
+    lineHeight: 17,
     fontWeight: '800',
+  },
+  startingLevelOptionTextCompact: {
+    fontSize: 12,
+    lineHeight: 15,
+  },
+  startingLevelFinePrintBox: {
+    borderRadius: 16,
+    backgroundColor: '#F3FAF9',
+    borderWidth: 1,
+    borderColor: '#CFEAE7',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
   },
   startingLevelFinePrint: {
     color: Colors.textSub,
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: 12,
+    lineHeight: 16,
     fontWeight: '800',
     textAlign: 'center',
+    flexShrink: 1,
+  },
+  startingLevelFinePrintCompact: {
+    fontSize: 11,
+    lineHeight: 15,
   },
   safe: {
     flex: 1,

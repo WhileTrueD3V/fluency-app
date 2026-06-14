@@ -266,18 +266,21 @@ Latest placement-modal repair:
   - `npm run build:web` passed.
   - `npm run validate:launch` passed with the existing bundle-id warning.
   - `rg -n "Mobile preview navigation|preview-dock|hideFooter=1" dist scripts app components` returns no matches.
-- Preview server is running again at `http://127.0.0.1:8083` from `npm run preview:web` (session `79000`). Local curl from the sandbox failed with `Operation not permitted`, but `lsof` confirmed the Node server is listening on `127.0.0.1:8083`.
+- Preview server is running again at `http://127.0.0.1:8083` from `npm run preview:web` (latest observed PID `7358`). Local curl from the sandbox may fail with `Operation not permitted`, but `lsof` confirmed the Node server is listening on `127.0.0.1:8083`.
 
 Newest popup design refinement:
 
 - The starting-level modal was redesigned from a plain stacked list into a cleaner calibration sheet.
-- Desktop now uses a modern 2-by-2 option tile layout; mobile/short screens use compact sizing and a stacked scrollable layout.
+- Desktop now uses a modern 2-by-2 option tile layout; mobile/short screens use compact sizing and a stacked native-sheet style list.
+- Desktop option tiles were refined again on June 13, 2026 so labels and descriptions do not show `...`: the level calibration pill moved out of the title row, titles/descriptions can breathe, and metadata sits in the tile footer.
+- Mobile option tiles were tightened so the first-open calibration sheet feels less like squished desktop: shorter summaries, smaller level orbs, reduced padding/gaps, no blue/gold focus outline, and cleaner in-card metadata.
 - Option tiles now use `InteractivePressable`, so they have hover lift, shadow, border feedback, pressed feedback, and animated arrow motion.
 - The popup still does not advertise XP boosts; it only shows calibration language and short readiness descriptions.
 - Verification after this redesign:
   - `npx tsc --noEmit` passed.
   - `npm run build:web` passed.
   - `npm run validate:launch` passed.
+- Latest local preview after the June 13 refinement was checked in both narrow/mobile preview and a temporary 1440x900 desktop viewport. The browser viewport override was reset afterward.
 
 The AI server on port `8787` was running from this repo as PID `36107`, attached to another terminal. Server prompt changes require a grading-server restart to take effect. Do not casually kill/restart it from a shell that lacks API keys, because that can replace a keyed server with an unkeyed one.
 
