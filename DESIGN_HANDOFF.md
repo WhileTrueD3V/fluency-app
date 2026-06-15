@@ -7,7 +7,7 @@ Use this file when starting a new chat focused primarily on design.
 Working directory:
 
 ```text
-/Users/chocolate_god/Downloads/fluency-app
+/Users/chocolate_god/Documents/Apps/fluency-app
 ```
 
 Also read:
@@ -214,7 +214,7 @@ utils/storage.ts
 Paste this into the new chat:
 
 ```text
-We are working in /Users/chocolate_god/Downloads/fluency-app.
+We are working in /Users/chocolate_god/Documents/Apps/fluency-app.
 
 Read PROJECT_HANDOFF.md and DESIGN_HANDOFF.md first. This chat should focus primarily on design for Kibbo, a React Native + Expo Router AP language trainer.
 

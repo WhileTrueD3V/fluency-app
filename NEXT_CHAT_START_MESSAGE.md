@@ -1,4 +1,4 @@
-We are working in `/Users/chocolate_god/Downloads/fluency-app`.
+We are working in `/Users/chocolate_god/Documents/Apps/fluency-app`.
 
 Read `NEXT_CHAT_HANDOFF.md` first. It is the latest handoff and overrides older design drift. Only use `PROJECT_HANDOFF.md`, `DESIGN_HANDOFF.md`, and `KIBBO_RESET_HANDOFF.md` as supporting context.
 

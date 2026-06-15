@@ -13,7 +13,7 @@ When older notes conflict with this file, this file wins.
 Working directory:
 
 ```text
-/Users/chocolate_god/Downloads/fluency-app
+/Users/chocolate_god/Documents/Apps/fluency-app
 ```
 
 ## North Star
@@ -489,7 +489,7 @@ Do not open browser demos unless the user explicitly asks.
 ## Suggested Opening Prompt For A New Chat
 
 ```text
-We are working in /Users/chocolate_god/Downloads/fluency-app.
+We are working in /Users/chocolate_god/Documents/Apps/fluency-app.
 
 Read PROJECT_HANDOFF.md, DESIGN_HANDOFF.md, and KIBBO_RESET_HANDOFF.md first. KIBBO_RESET_HANDOFF.md is the current product/design direction when older notes conflict.
 

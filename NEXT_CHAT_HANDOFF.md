@@ -2,7 +2,7 @@
 
 This is the latest handoff for continuing work in:
 
-`/Users/chocolate_god/Downloads/fluency-app`
+`/Users/chocolate_god/Documents/Apps/fluency-app`
 
 Read this file first in the next chat. Use `PROJECT_HANDOFF.md`, `DESIGN_HANDOFF.md`, and `KIBBO_RESET_HANDOFF.md` only as supporting context. This file overrides older design drift.
 
@@ -91,7 +91,7 @@ Before another broad live QA pass, prefer targeted two-call checks or inspect ge
 
 ## Git / GitHub Status
 
-This folder was not originally a Git repository. On June 10, 2026, a local Git repository was created in `/Users/chocolate_god/Downloads/fluency-app`.
+This folder was not originally a Git repository. On June 10, 2026, a local Git repository was created in `/Users/chocolate_god/Documents/Apps/fluency-app`.
 
 - Current branch: `main`
 - Initial commit: `a352c63` (`Initial Kibbo app repository`)

@@ -3,7 +3,7 @@
 Use this file as the compact project context for future chats. The current working directory is:
 
 ```text
-/Users/chocolate_god/Downloads/fluency-app
+/Users/chocolate_god/Documents/Apps/fluency-app
 ```
 
 The app is a React Native + Expo Router language trainer for AP language mastery. It started as AP Japanese and is now branded as **Kibbo**. We are preparing it for app-store launch as a free app with in-app purchases. We also want to use the same structure to build a Mandarin version for a friend.
