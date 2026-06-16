@@ -487,7 +487,7 @@ function SettingsMenu({
                     ['large', 'Large'],
                     ['extraLarge', 'XL'],
                   ] as const).map(([value, label]) => {
-                    const active = (settings?.readingTextSize ?? 'standard') === value;
+                    const active = (settings?.readingTextSize ?? 'extraLarge') === value;
                     return (
                       <TouchableOpacity
                         key={value}

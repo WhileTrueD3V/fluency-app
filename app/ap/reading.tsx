@@ -202,7 +202,7 @@ export default function APReadingSession() {
   const [answers, setAnswers] = useState<AnswerRecord[]>([]);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [phase, setPhase] = useState<'answering' | 'feedback' | 'complete'>('answering');
-  const [readingTextSize, setReadingTextSize] = useState<ReadingTextSize>('standard');
+  const [readingTextSize, setReadingTextSize] = useState<ReadingTextSize>('extraLarge');
   const [streak, setStreak] = useState(0);
   const [bestStreak, setBestStreak] = useState(0);
   const [totalXP, setTotalXP] = useState(0);

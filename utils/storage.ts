@@ -281,7 +281,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   soundEffects: true,
   haptics: true,
   studyReminders: false,
-  readingTextSize: 'standard',
+  readingTextSize: 'extraLarge',
 };
 
 export const STARTING_LEVEL_CHOICES: StartingLevelChoice[] = [
