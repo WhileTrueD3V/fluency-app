@@ -918,11 +918,9 @@ export default function TranslationScreen() {
                 <View style={[styles.mobileRecordStage, isCompact && styles.mobileRecordStageCompact]}>
                   <RecordButton state={recognitionState} onPress={handleRecordToggle} />
                 </View>
-                <Text style={styles.recordHint}>
-                  {phase === 'evaluating'
-                    ? 'Reviewing your answer...'
-                    : `Say the ${language.name} translation out loud. You will get separate scores for meaning, pronunciation, and naturalness.`}
-                </Text>
+                {phase === 'evaluating' && (
+                  <Text style={styles.recordHint}>Reviewing your answer...</Text>
+                )}
                 {recordingState === 'stopped' && recordingUri && (
                   <Text style={styles.recordingSavedText}>Audio captured for pronunciation and naturalness review</Text>
                 )}
