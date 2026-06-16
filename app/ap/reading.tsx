@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   Animated,
+  Pressable,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -141,27 +142,52 @@ function compactEvidenceText(text: string) {
   return text.toLowerCase().replace(/[\s。、，,.!?！？;；:：「」『』()（）"'’“”]/g, '');
 }
 
+function evidenceClauses(text: string) {
+  return text
+    .split(/[、，]/)
+    .map((part) => part.trim())
+    .filter((part) => part.length >= 4);
+}
+
+function inferEvidenceKeyword(evidence: string) {
+  const phrase = evidence.match(/[一-龯][一-龯ぁ-んァ-ヶー]*(?:を|が|は|に|で)?[一-龯ぁ-んァ-ヶー]*/)?.[0];
+  return phrase ?? evidence.slice(0, Math.min(16, evidence.length));
+}
+
+function refineEvidencePhrase(evidence: string, terms: string[]) {
+  const clauses = evidenceClauses(evidence);
+  if (clauses.length === 0) return evidence;
+  const ranked = clauses
+    .map((clause, index) => ({
+      clause,
+      index,
+      score: terms.reduce((sum, term) => sum + (compactEvidenceText(clause).includes(term) ? 1 : 0), 0),
+    }))
+    .sort((a, b) => b.score - a.score || b.index - a.index);
+  return ranked[0]?.clause ?? evidence;
+}
+
 function getReadingEvidenceHint(passage: ReadingPassageSet, question: ReadingPromptQuestion): ReadingEvidenceHint {
   const sentences = splitPassageSentences(passage.passage);
   const explicitEvidence = question.evidence?.trim();
   const explicitKeyword = question.keyword?.trim();
+  const correctChoice = question.choices[question.correctIndex] ?? '';
+  const questionTerms = [question.question, correctChoice, explicitEvidence ?? '']
+    .flatMap((text) => text.split(/[^A-Za-z0-9一-龯ぁ-んァ-ヶー]+/))
+    .map((text) => compactEvidenceText(text))
+    .filter((text) => text.length >= 3);
   const matchedEvidence = explicitEvidence
-    ? sentences.find((sentence) => sentence.includes(explicitEvidence) || explicitEvidence.includes(sentence)) ?? explicitEvidence
+    ? refineEvidencePhrase(sentences.find((sentence) => sentence.includes(explicitEvidence) || explicitEvidence.includes(sentence)) ?? explicitEvidence, questionTerms)
     : '';
 
   if (matchedEvidence) {
     return {
       evidence: matchedEvidence,
-      keyword: explicitKeyword || matchedEvidence.slice(0, Math.min(14, matchedEvidence.length)),
+      keyword: explicitKeyword || inferEvidenceKeyword(matchedEvidence),
       explanation: question.explanation?.trim() || 'This line gives the detail needed to choose the correct answer.',
     };
   }
 
-  const correctChoice = question.choices[question.correctIndex] ?? '';
-  const questionTerms = [question.question, correctChoice]
-    .flatMap((text) => text.split(/[^A-Za-z0-9一-龯ぁ-んァ-ヶー]+/))
-    .map((text) => compactEvidenceText(text))
-    .filter((text) => text.length >= 3);
   const bestSentence = sentences
     .map((sentence) => ({
       sentence,
@@ -171,9 +197,11 @@ function getReadingEvidenceHint(passage: ReadingPassageSet, question: ReadingPro
     ?? sentences[0]
     ?? passage.passage;
 
+  const bestEvidence = refineEvidencePhrase(bestSentence, questionTerms);
+
   return {
-    evidence: bestSentence,
-    keyword: explicitKeyword || questionTerms[0] || 'key detail',
+    evidence: bestEvidence,
+    keyword: explicitKeyword || inferEvidenceKeyword(bestEvidence),
     explanation: question.explanation?.trim() || 'Use this sentence as the evidence trail, then match the key detail to the correct answer.',
   };
 }
@@ -355,6 +383,9 @@ export default function APReadingSession() {
   const readingEvidenceHint = currentPassage && currentQuestion
     ? getReadingEvidenceHint(currentPassage, currentQuestion)
     : null;
+  const shouldHighlightEvidence = phase === 'feedback'
+    && selectedIndex !== currentQuestion?.correctIndex;
+  const highlightedEvidenceText = shouldHighlightEvidence ? readingEvidenceHint?.evidence : null;
   const latestAnswer = answers[answers.length - 1];
   const isSaved = currentPassage ? savedIds.has(currentPassage.id) : false;
   const correctCount = answers.filter((answer) => answer.isCorrect).length;
@@ -698,7 +729,14 @@ export default function APReadingSession() {
                   contentContainerStyle={[styles.passageBodyContent, drillCompact && styles.passageBodyContentCompact]}
                 >
                   {langCode === 'ja' ? (
-                    <FuriganaText text={currentPassage.passage} mode="ap-support" compact={drillCompact} textScale={readingTextScale} />
+                    <FuriganaText
+                      text={currentPassage.passage}
+                      mode={phase === 'feedback' ? 'full' : 'ap-support'}
+                      compact={drillCompact}
+                      textScale={readingTextScale}
+                      highlightText={highlightedEvidenceText}
+                      highlightStyle={styles.passageEvidenceHighlight}
+                    />
                   ) : (
                     <Text style={[styles.passageText, { fontSize: (isTight ? 22 : 32) * readingTextScale, lineHeight: (isTight ? 32 : 54) * readingTextScale }]}>
                       {currentPassage.passage}
@@ -774,26 +812,7 @@ export default function APReadingSession() {
                     >
                       {selectedIndex === currentQuestion.correctIndex ? 'Correct!' : selectedIndex === null ? "Time's up" : 'Not quite'}
                     </Text>
-                    {selectedIndex !== currentQuestion.correctIndex && (
-                      <View style={styles.feedbackEvidenceStack}>
-                        <Text style={styles.feedbackCorrect}>
-                          Answer: {currentQuestion.choices[currentQuestion.correctIndex]}
-                        </Text>
-                        {readingEvidenceHint && (
-                          <View style={styles.feedbackEvidenceCard}>
-                            <Text style={styles.feedbackEvidenceLabel}>Where the passage says it</Text>
-                            <FuriganaText
-                              text={readingEvidenceHint.evidence}
-                              mode="full"
-                              compact={drillCompact}
-                              textScale={drillCompact ? 0.88 : 0.95}
-                            />
-                            <Text style={styles.feedbackKeyword}>Key cue: {readingEvidenceHint.keyword}</Text>
-                            <Text style={styles.feedbackExplanation}>{readingEvidenceHint.explanation}</Text>
-                          </View>
-                        )}
-                      </View>
-                    )}
+
                   </View>
                   <TouchableOpacity onPress={handleSave} style={styles.saveIconBtn}>
                     {isSaved ? (
@@ -814,10 +833,14 @@ export default function APReadingSession() {
 
               {phase === 'feedback' && drillCompact && (
                 <View style={[styles.feedbackActions, styles.feedbackActionsCompact]}>
-                  <TouchableOpacity
+                  <Pressable
                     onPress={handleSave}
-                    activeOpacity={0.82}
-                    style={[styles.feedbackSaveBtn, isSaved && styles.feedbackSaveBtnDone]}
+                    style={({ hovered, pressed }) => [
+                      styles.feedbackSaveBtn,
+                      isSaved && styles.feedbackSaveBtnDone,
+                      hovered && styles.feedbackSaveBtnHover,
+                      pressed && styles.feedbackActionBtnPress,
+                    ]}
                   >
                     {isSaved
                       ? <CheckIcon size={17} color={Colors.success} />
@@ -825,8 +848,15 @@ export default function APReadingSession() {
                     <Text style={[styles.feedbackSaveText, isSaved && styles.feedbackSaveTextDone]}>
                       {isSaved ? 'Saved' : 'Save to Library'}
                     </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={advanceAfterFeedback} activeOpacity={0.86} style={styles.feedbackNextBtn}>
+                  </Pressable>
+                  <Pressable
+                    onPress={advanceAfterFeedback}
+                    style={({ hovered, pressed }) => [
+                      styles.feedbackNextBtn,
+                      hovered && styles.feedbackNextBtnHover,
+                      pressed && styles.feedbackActionBtnPress,
+                    ]}
+                  >
                     <Text style={styles.feedbackNextText}>
                       {currentQuestionIndex + 1 < currentPassage.questions.length
                         ? 'Next Question'
@@ -834,7 +864,7 @@ export default function APReadingSession() {
                           ? 'Finish'
                           : 'Next Passage'}
                     </Text>
-                  </TouchableOpacity>
+                  </Pressable>
                 </View>
               )}
             </View>
@@ -1122,6 +1152,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
+  passageEvidenceHighlight: {
+    backgroundColor: '#CFF5ED',
+  },
   questionMeta: {
     gap: 4,
   },
@@ -1289,6 +1322,11 @@ const styles = StyleSheet.create({
     borderColor: Colors.success,
     backgroundColor: Colors.successDim,
   },
+  feedbackSaveBtnHover: {
+    borderColor: Colors.teal,
+    backgroundColor: '#F7FFFD',
+    transform: [{ translateY: -2 }],
+  },
   feedbackSaveText: {
     color: Colors.textSub,
     fontSize: 15,
@@ -1303,6 +1341,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 18,
+  },
+  feedbackNextBtnHover: {
+    backgroundColor: '#26B990',
+    transform: [{ translateY: -2 }],
+  },
+  feedbackActionBtnPress: {
+    transform: [{ translateY: 1 }, { scale: 0.99 }],
   },
   feedbackNextText: {
     color: Colors.onPrimary,

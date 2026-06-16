@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View, type ViewStyle } from 'react-native';
 import { Colors } from '@/constants/colors';
 import { getFuriganaSegments } from '@/utils/furigana';
 
@@ -8,6 +8,8 @@ interface FuriganaTextProps {
   mode?: 'full' | 'partial' | 'minimal' | 'ap-support';
   compact?: boolean;
   textScale?: number;
+  highlightText?: string | null;
+  highlightStyle?: ViewStyle;
 }
 
 const AP_JAPANESE_KANJI = new Set([
@@ -30,8 +32,11 @@ function shouldShowReading(segment: { text: string; reading?: string }, mode: No
   return kanjiCount >= 3;
 }
 
-export function FuriganaText({ text, mode = 'full', compact, textScale = 1 }: FuriganaTextProps) {
+export function FuriganaText({ text, mode = 'full', compact, textScale = 1, highlightText, highlightStyle }: FuriganaTextProps) {
   const segments = getFuriganaSegments(text);
+  const highlightStart = highlightText ? text.indexOf(highlightText) : -1;
+  const highlightEnd = highlightStart >= 0 && highlightText ? highlightStart + highlightText.length : -1;
+  let cursor = 0;
   const baseFontSize = (compact ? 14 : 17) * textScale;
   const baseLineHeight = (compact ? 20 : 27) * textScale;
   const readingFontSize = (compact ? 9 : 11) * Math.max(1, textScale * 0.92);
@@ -40,8 +45,13 @@ export function FuriganaText({ text, mode = 'full', compact, textScale = 1 }: Fu
 
   return (
     <View style={[styles.wrap, compact && styles.wrapCompact]}>
-      {segments.map((segment, index) => (
-        <View key={`${segment.text}-${index}`} style={[styles.segment, compact && styles.segmentCompact, { minHeight }]}>
+      {segments.map((segment, index) => {
+        const start = cursor;
+        const end = cursor + segment.text.length;
+        const highlighted = highlightStart >= 0 && start < highlightEnd && end > highlightStart;
+        cursor = end;
+        return (
+        <View key={`${segment.text}-${index}`} style={[styles.segment, compact && styles.segmentCompact, highlighted && styles.segmentHighlighted, highlighted && highlightStyle, { minHeight }]}>
           <Text
             style={[
               styles.reading,
@@ -56,7 +66,8 @@ export function FuriganaText({ text, mode = 'full', compact, textScale = 1 }: Fu
             {segment.text}
           </Text>
         </View>
-      ))}
+        );
+      })}
     </View>
   );
 }
@@ -80,6 +91,11 @@ const styles = StyleSheet.create({
   },
   segmentCompact: {
     minHeight: 30,
+  },
+  segmentHighlighted: {
+    backgroundColor: '#DDF7F2',
+    borderRadius: 8,
+    paddingHorizontal: 2,
   },
   reading: {
     color: Colors.gold,
