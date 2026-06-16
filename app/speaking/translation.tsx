@@ -121,6 +121,17 @@ function hasPoliteShape(text: string): boolean {
   return /(です|ます|ください|お願いします|ませんか|でしょうか|ありがとう)/.test(text);
 }
 
+function hasNaturalJapaneseEnding(text: string): boolean {
+  return /(です|ます|だ|だよ|だね|ね|よ|かな|かも|んだけど|たい|ください|お願いします|ませんか|ましょうか|しようか)[。！？!?\s]*$/.test(text.trim());
+}
+
+function registerFitScore(transcript: string, target: string): number {
+  const targetPolite = hasPoliteShape(target);
+  const transcriptPolite = hasPoliteShape(transcript);
+  if (targetPolite) return transcriptPolite ? 1 : 0.82;
+  return 1;
+}
+
 function lengthBalanceScore(transcript: string, target: string): number {
   const spokenLength = transcript.replace(/\s/g, '').length;
   const targetLength = target.replace(/\s/g, '').length;
@@ -184,9 +195,9 @@ function analyzeDelivery(
     notes.push('A restart inside the answer made the phrase sound less native-like.');
     naturalnessCap = Math.min(naturalnessCap, 78);
   }
-  if (confidence < 0.62) {
+  if (confidence < 0.5) {
     notes.push('Speech recognition confidence was low, so pronunciation or clarity may need another pass.');
-    naturalnessCap = Math.min(naturalnessCap, 78);
+    naturalnessCap = Math.min(naturalnessCap, 88);
   }
 
   return {
@@ -209,17 +220,19 @@ function scoreNaturalness(
 ): number {
   if (!transcript.trim()) return 0;
 
-  const pronunciationShape = stringSimilarityScore(transcript, target);
   const lengthShape = lengthBalanceScore(transcript, target) / 100;
   const scriptScore = hasJapanese(transcript) ? 1 : 0.35;
-  const politeScore = hasPoliteShape(transcript) || hasPoliteShape(target) ? 1 : 0.72;
+  const endingScore = hasNaturalJapaneseEnding(transcript) ? 1 : 0.76;
+  const registerScore = registerFitScore(transcript, target);
+  const deliveryScore = Math.min(1, delivery.naturalnessCap / 100);
+  const confidenceShape = Math.max(0.62, confidence);
   const raw = (
-    confidence * 0.2
-    + pronunciationShape * 0.2
-    + lengthShape * 0.15
-    + scriptScore * 0.15
-    + politeScore * 0.1
-    + Math.min(1, delivery.naturalnessCap / 100) * 0.2
+    confidenceShape * 0.1
+    + lengthShape * 0.16
+    + scriptScore * 0.2
+    + endingScore * 0.2
+    + registerScore * 0.14
+    + deliveryScore * 0.2
   ) * 100;
 
   const scored = Math.round(raw - repeatedChunkPenalty(transcript));
@@ -280,6 +293,7 @@ export default function TranslationScreen() {
   const attemptRunRef = useRef(0);
   const promptLoadRunRef = useRef(0);
   const userPlaybackRef = useRef<Audio.Sound | null>(null);
+  const webUserPlaybackRef = useRef<HTMLAudioElement | null>(null);
   const [isUserRecordingPlaying, setIsUserRecordingPlaying] = useState(false);
 
   useEffect(() => {
@@ -409,6 +423,13 @@ export default function TranslationScreen() {
   }, []);
 
   const stopUserRecordingPlayback = useCallback(async () => {
+    const webAudio = webUserPlaybackRef.current;
+    webUserPlaybackRef.current = null;
+    if (webAudio) {
+      webAudio.pause();
+      webAudio.currentTime = 0;
+      webAudio.onended = null;
+    }
     const sound = userPlaybackRef.current;
     userPlaybackRef.current = null;
     setIsUserRecordingPlaying(false);
@@ -423,13 +444,25 @@ export default function TranslationScreen() {
   }, []);
 
   const toggleUserRecordingPlayback = useCallback(async () => {
-    if (!recordingUri || Platform.OS === 'web') return;
+    if (!recordingUri) return;
     if (isUserRecordingPlaying) {
       await stopUserRecordingPlayback();
       return;
     }
     stopTargetAudio();
     await stopUserRecordingPlayback();
+    if (Platform.OS === 'web') {
+      try {
+        const audio = new globalThis.Audio(recordingUri);
+        webUserPlaybackRef.current = audio;
+        setIsUserRecordingPlaying(true);
+        audio.onended = () => void stopUserRecordingPlayback();
+        await audio.play();
+      } catch {
+        setIsUserRecordingPlaying(false);
+      }
+      return;
+    }
     try {
       const { sound } = await Audio.Sound.createAsync({ uri: recordingUri });
       userPlaybackRef.current = sound;
@@ -992,16 +1025,16 @@ export default function TranslationScreen() {
                 <View style={styles.audioCompareRow}>
                   <TouchableOpacity
                     onPress={toggleUserRecordingPlayback}
-                    disabled={!recordingUri || Platform.OS === 'web'}
+                    disabled={!recordingUri}
                     activeOpacity={0.82}
                     style={[
                       styles.audioCompareButton,
-                      (!recordingUri || Platform.OS === 'web') && styles.audioCompareButtonDisabled,
+                      !recordingUri && styles.audioCompareButtonDisabled,
                     ]}
                   >
                     <Text style={[
                       styles.audioCompareText,
-                      (!recordingUri || Platform.OS === 'web') && styles.audioCompareTextDisabled,
+                      !recordingUri && styles.audioCompareTextDisabled,
                     ]}>
                       {isUserRecordingPlaying ? 'Stop yours' : 'Play yours'}
                     </Text>
@@ -1016,8 +1049,8 @@ export default function TranslationScreen() {
                     </Text>
                   </TouchableOpacity>
                 </View>
-                {(!recordingUri || Platform.OS === 'web') && (
-                  <Text style={styles.audioCompareNote}>Your recording playback appears in the app after native audio capture.</Text>
+                {!recordingUri && (
+                  <Text style={styles.audioCompareNote}>Record an answer first, then compare your audio with the model.</Text>
                 )}
               </View>
               {result.coachNotes.length > 0 && (

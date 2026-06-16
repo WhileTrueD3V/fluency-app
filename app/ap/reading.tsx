@@ -126,6 +126,58 @@ function formatCountdown(totalSeconds: number) {
   return `${minutes}:${String(seconds).padStart(2, '0')}`;
 }
 
+type ReadingEvidenceHint = {
+  evidence: string;
+  keyword: string;
+  explanation: string;
+};
+
+function splitPassageSentences(passage: string) {
+  const matches = passage.match(/[^。！？!?]+[。！？!?]?/g) ?? [];
+  return matches.map((part) => part.trim()).filter(Boolean);
+}
+
+function compactEvidenceText(text: string) {
+  return text.toLowerCase().replace(/[\s。、，,.!?！？;；:：「」『』()（）"'’“”]/g, '');
+}
+
+function getReadingEvidenceHint(passage: ReadingPassageSet, question: ReadingPromptQuestion): ReadingEvidenceHint {
+  const sentences = splitPassageSentences(passage.passage);
+  const explicitEvidence = question.evidence?.trim();
+  const explicitKeyword = question.keyword?.trim();
+  const matchedEvidence = explicitEvidence
+    ? sentences.find((sentence) => sentence.includes(explicitEvidence) || explicitEvidence.includes(sentence)) ?? explicitEvidence
+    : '';
+
+  if (matchedEvidence) {
+    return {
+      evidence: matchedEvidence,
+      keyword: explicitKeyword || matchedEvidence.slice(0, Math.min(14, matchedEvidence.length)),
+      explanation: question.explanation?.trim() || 'This line gives the detail needed to choose the correct answer.',
+    };
+  }
+
+  const correctChoice = question.choices[question.correctIndex] ?? '';
+  const questionTerms = [question.question, correctChoice]
+    .flatMap((text) => text.split(/[^A-Za-z0-9一-龯ぁ-んァ-ヶー]+/))
+    .map((text) => compactEvidenceText(text))
+    .filter((text) => text.length >= 3);
+  const bestSentence = sentences
+    .map((sentence) => ({
+      sentence,
+      score: questionTerms.reduce((sum, term) => sum + (compactEvidenceText(sentence).includes(term) ? 1 : 0), 0),
+    }))
+    .sort((a, b) => b.score - a.score)[0]?.sentence
+    ?? sentences[0]
+    ?? passage.passage;
+
+  return {
+    evidence: bestSentence,
+    keyword: explicitKeyword || questionTerms[0] || 'key detail',
+    explanation: question.explanation?.trim() || 'Use this sentence as the evidence trail, then match the key detail to the correct answer.',
+  };
+}
+
 export default function APReadingSession() {
   const router = useRouter();
   const { width, height } = useWindowDimensions();
@@ -300,6 +352,9 @@ export default function APReadingSession() {
 
   const currentPassage = passages[currentPassageIndex] ?? null;
   const currentQuestion: ReadingPromptQuestion | null = currentPassage?.questions[currentQuestionIndex] ?? null;
+  const readingEvidenceHint = currentPassage && currentQuestion
+    ? getReadingEvidenceHint(currentPassage, currentQuestion)
+    : null;
   const latestAnswer = answers[answers.length - 1];
   const isSaved = currentPassage ? savedIds.has(currentPassage.id) : false;
   const correctCount = answers.filter((answer) => answer.isCorrect).length;
@@ -720,9 +775,24 @@ export default function APReadingSession() {
                       {selectedIndex === currentQuestion.correctIndex ? 'Correct!' : selectedIndex === null ? "Time's up" : 'Not quite'}
                     </Text>
                     {selectedIndex !== currentQuestion.correctIndex && (
-                      <Text style={styles.feedbackCorrect}>
-                        Answer: {currentQuestion.choices[currentQuestion.correctIndex]}
-                      </Text>
+                      <View style={styles.feedbackEvidenceStack}>
+                        <Text style={styles.feedbackCorrect}>
+                          Answer: {currentQuestion.choices[currentQuestion.correctIndex]}
+                        </Text>
+                        {readingEvidenceHint && (
+                          <View style={styles.feedbackEvidenceCard}>
+                            <Text style={styles.feedbackEvidenceLabel}>Where the passage says it</Text>
+                            <FuriganaText
+                              text={readingEvidenceHint.evidence}
+                              mode="full"
+                              compact={drillCompact}
+                              textScale={drillCompact ? 0.88 : 0.95}
+                            />
+                            <Text style={styles.feedbackKeyword}>Key cue: {readingEvidenceHint.keyword}</Text>
+                            <Text style={styles.feedbackExplanation}>{readingEvidenceHint.explanation}</Text>
+                          </View>
+                        )}
+                      </View>
                     )}
                   </View>
                   <TouchableOpacity onPress={handleSave} style={styles.saveIconBtn}>
@@ -1116,6 +1186,9 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
   },
   feedbackBody: { flex: 1, gap: 2 },
+  feedbackEvidenceStack: {
+    gap: 8,
+  },
   feedbackResult: {
     fontSize: 16,
     fontWeight: '900',
@@ -1124,6 +1197,39 @@ const styles = StyleSheet.create({
     color: Colors.textSub,
     fontSize: 14,
     lineHeight: 20,
+    fontWeight: '700',
+  },
+  feedbackEvidenceCard: {
+    backgroundColor: Colors.surface,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    padding: 12,
+    gap: 7,
+  },
+  feedbackEvidenceLabel: {
+    color: DrillAccents.reading,
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+  },
+  feedbackEvidenceText: {
+    color: Colors.text,
+    fontSize: 16,
+    lineHeight: 26,
+    fontWeight: '800',
+  },
+  feedbackKeyword: {
+    color: Colors.text,
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '900',
+  },
+  feedbackExplanation: {
+    color: Colors.textSub,
+    fontSize: 13,
+    lineHeight: 18,
     fontWeight: '700',
   },
   saveIconBtn: {

@@ -25,6 +25,9 @@ export interface ReadingPromptQuestion {
   question: string;
   choices: string[];
   correctIndex: number;
+  evidence?: string;
+  keyword?: string;
+  explanation?: string;
 }
 
 export interface ReadingPassageSet {

@@ -119,7 +119,13 @@ function practiceItemText(item: GeneratedPromptItem) {
       item.context,
       item.category,
       item.passage,
-      ...item.questions.map((question) => question.question),
+      ...item.questions.flatMap((question) => [
+        question.question,
+        question.choices[question.correctIndex] ?? '',
+        ...question.choices,
+        question.evidence ?? '',
+        question.keyword ?? '',
+      ]),
     ].join(' ');
   }
   if ('english' in item) {
@@ -139,7 +145,16 @@ function practiceItemText(item: GeneratedPromptItem) {
 
 function practiceItemTopicText(item: GeneratedPromptItem) {
   if ('transcript' in item) return [item.context, item.category, item.question].join(' ');
-  if ('passage' in item) return [item.title, item.context, item.category, ...item.questions.map((question) => question.question)].join(' ');
+  if ('passage' in item) return [
+    item.title,
+    item.context,
+    item.category,
+    ...item.questions.flatMap((question) => [
+      question.question,
+      question.choices[question.correctIndex] ?? '',
+      question.keyword ?? '',
+    ]),
+  ].join(' ');
   if ('english' in item) return item.english;
   return [item.title, item.situation, ...item.prompts.slice(0, 2)].join(' ');
 }

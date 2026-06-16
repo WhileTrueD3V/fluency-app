@@ -72,13 +72,6 @@ function dailyPlanSignature(profile: AIPersonalizationProfile) {
   return JSON.stringify({
     day: dateKey(),
     languageCode: profile.languageCode,
-    totalXP: profile.totalXP,
-    currentLevel: profile.currentLevel,
-    accuracyPercent: profile.accuracyPercent,
-    weakestRubric: profile.weakestRubric,
-    todayWorkCount: profile.todayWork.length,
-    latestAttempt: profile.recentAttempts[0]?.rewardKey ?? `${profile.recentAttempts[0]?.type ?? 'none'}:${profile.recentAttempts[0]?.score ?? 0}`,
-    weakMemory: profile.weakMemory.slice(0, 3).map((item) => `${item.type}:${item.topic}:${item.rubric}:${item.missCount}`).join('|'),
   });
 }
 

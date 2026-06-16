@@ -15,6 +15,10 @@ export function useVoiceRecorder() {
   const [durationMillis, setDurationMillis] = useState(0);
   const [recordingError, setRecordingError] = useState<string | null>(null);
   const recordingRef = useRef<Audio.Recording | null>(null);
+  const webRecorderRef = useRef<MediaRecorder | null>(null);
+  const webStreamRef = useRef<MediaStream | null>(null);
+  const webChunksRef = useRef<Blob[]>([]);
+  const webStartedAtRef = useRef(0);
 
   const startRecording = useCallback(async () => {
     setRecordingError(null);
@@ -22,8 +26,30 @@ export function useVoiceRecorder() {
     setDurationMillis(0);
 
     if (Platform.OS === 'web') {
-      setRecordingState('idle');
-      return true;
+      try {
+        const mediaDevices = globalThis.navigator?.mediaDevices;
+        if (!mediaDevices || typeof MediaRecorder === 'undefined') {
+          setRecordingError('Browser audio recording is not available here.');
+          setRecordingState('error');
+          return false;
+        }
+        const stream = await mediaDevices.getUserMedia({ audio: true });
+        const recorder = new MediaRecorder(stream);
+        webChunksRef.current = [];
+        webStreamRef.current = stream;
+        webRecorderRef.current = recorder;
+        webStartedAtRef.current = Date.now();
+        recorder.ondataavailable = (event) => {
+          if (event.data.size > 0) webChunksRef.current.push(event.data);
+        };
+        recorder.start();
+        setRecordingState('recording');
+        return true;
+      } catch {
+        setRecordingError('Could not start browser audio recording.');
+        setRecordingState('error');
+        return false;
+      }
     }
 
     try {
@@ -52,8 +78,23 @@ export function useVoiceRecorder() {
 
   const stopRecording = useCallback(async (): Promise<VoiceRecordingResult> => {
     if (Platform.OS === 'web') {
-      setRecordingState('idle');
-      return { uri: null, durationMillis: 0 };
+      const recorder = webRecorderRef.current;
+      if (!recorder) return { uri: recordingUri, durationMillis };
+      return await new Promise<VoiceRecordingResult>((resolve) => {
+        recorder.onstop = () => {
+          const blob = new Blob(webChunksRef.current, { type: recorder.mimeType || 'audio/webm' });
+          const uri = URL.createObjectURL(blob);
+          const elapsed = Math.max(0, Date.now() - webStartedAtRef.current);
+          webStreamRef.current?.getTracks().forEach((track) => track.stop());
+          webStreamRef.current = null;
+          webRecorderRef.current = null;
+          setRecordingUri(uri);
+          setDurationMillis(elapsed);
+          setRecordingState('stopped');
+          resolve({ uri, durationMillis: elapsed });
+        };
+        recorder.stop();
+      });
     }
 
     const recording = recordingRef.current;
@@ -78,6 +119,17 @@ export function useVoiceRecorder() {
 
   const resetRecording = useCallback(async () => {
     if (Platform.OS === 'web') {
+      if (webRecorderRef.current?.state === 'recording') {
+        try {
+          webRecorderRef.current.stop();
+        } catch {
+          // Ignore cleanup failures.
+        }
+      }
+      webStreamRef.current?.getTracks().forEach((track) => track.stop());
+      webRecorderRef.current = null;
+      webStreamRef.current = null;
+      webChunksRef.current = [];
       recordingRef.current = null;
       setRecordingState('idle');
       setRecordingUri(null);

@@ -55,7 +55,10 @@ function isReadingQuestion(value: unknown): value is ReadingPromptQuestion {
     && choices.length === 4
     && typeof value.correctIndex === 'number'
     && value.correctIndex >= 0
-    && value.correctIndex < choices.length;
+    && value.correctIndex < choices.length
+    && (value.evidence === undefined || typeof value.evidence === 'string')
+    && (value.keyword === undefined || typeof value.keyword === 'string')
+    && (value.explanation === undefined || typeof value.explanation === 'string');
 }
 
 export function parseAIListeningQuestions(items: AIPracticeItem[]): ListeningQuestion[] {

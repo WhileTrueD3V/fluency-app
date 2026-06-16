@@ -111,6 +111,7 @@ type PlanAction = {
   accent: string;
   icon: React.ReactNode;
   targetSkills?: string[];
+  rewardKey?: string;
   onPress: () => void;
 };
 
@@ -155,8 +156,14 @@ function sessionDateKey(timestamp: number) {
   return new Date(timestamp).toDateString();
 }
 
+function dailyPlanRewardKey(languageCode: LanguageCode, actionId: string) {
+  return `daily-plan:${languageCode}:${new Date().toDateString()}:${actionId}`;
+}
+
 function actionMatchesSession(action: PlanAction, session: SessionRecord) {
-  if (action.id === 'diagnostic') return Boolean(session.mockId);
+  if ((action.id === 'diagnostic' || action.id.includes('mock')) && session.mockId) return true;
+  if (action.rewardKey && session.rewardKey === action.rewardKey) return true;
+  if (action.rewardKey) return false;
   if (action.id.includes('listening')) return session.type === 'listening';
   if (action.id.includes('reading')) return session.type === 'reading';
   if (action.id.includes('conversation')) return session.type === 'conversation';
@@ -1731,11 +1738,11 @@ function CoachLearningHome({
   const primaryComplete = completedActionIds.has(primaryAction.id);
   const planQueue = mobile ? planActions.slice(1) : primaryComplete ? planActions : planActions.slice(1);
   const totalMinutes = planQueue.reduce((sum, action) => sum + action.minutes, 0);
-  const completedPlanCount = planQueue.filter((action) => completedActionIds.has(action.id)).length;
-  const dailyPlanComplete = primaryComplete && (planQueue.length === 0 || completedPlanCount === planQueue.length);
+  const completedPlanCount = planActions.filter((action) => completedActionIds.has(action.id)).length;
+  const dailyPlanComplete = planActions.length > 0 && completedPlanCount >= planActions.length;
   const planHeaderTitle = mobile ? (dailyPlanComplete ? 'Complete' : 'Next') : dense ? (primaryComplete ? 'Plan' : 'Next') : (primaryComplete ? 'Generated plan' : 'After that');
   const planHeaderKicker = mobile ? '' : dense ? 'Plan' : (primaryComplete ? "Today's checklist" : 'Generated plan');
-  const planHeaderMeta = primaryComplete ? `${completedPlanCount}/${planQueue.length} done` : `${totalMinutes} min`;
+  const planHeaderMeta = primaryComplete ? `${completedPlanCount}/${planActions.length} done` : `${totalMinutes} min`;
   const showPlanHeaderKicker = !mobile;
   const showPlanHeaderMeta = !mobile;
   const displayActions = dense ? generatedActions.slice(0, 4) : compact ? generatedActions.slice(0, 4) : generatedActions;
@@ -2424,10 +2431,10 @@ export default function HomeScreen() {
     haptics.impact(choice.xpMultiplier > 1 ? 'medium' : 'light');
   };
 
-  const startListeningSet = (targetSkills: string[] = []) => {
+  const startListeningSet = (targetSkills: string[] = [], rewardKey?: string) => {
     startPracticeSession(() => router.push({
       pathname: '/listening/session',
-      params: { sessionId: `${Date.now()}`, languageCode: langCode, ...targetSkillRouteParams(targetSkills) },
+      params: { sessionId: `${Date.now()}`, languageCode: langCode, ...(rewardKey ? { rewardKey } : {}), ...targetSkillRouteParams(targetSkills) },
     }), {
       title: 'Listening accuracy repair',
       subtitle: 'Generated audio prompts focused on exact-detail capture and AP task completion.',
@@ -2439,40 +2446,40 @@ export default function HomeScreen() {
     router.push('/mock');
   };
 
-  const startSpeakingDrill = (targetSkills: string[] = []) => {
+  const startSpeakingDrill = (targetSkills: string[] = [], rewardKey?: string) => {
     startPracticeSession(() => router.push({
       pathname: '/speaking/translation',
-      params: { languageCode: langCode, ...targetSkillRouteParams(targetSkills) },
+      params: { languageCode: langCode, ...(rewardKey ? { rewardKey } : {}), ...targetSkillRouteParams(targetSkills) },
     }), {
       title: 'Timed speaking control',
       subtitle: 'A generated spoken drill that targets delivery, pace, and complete responses.',
     });
   };
 
-  const startReadingSet = (targetSkills: string[] = []) => {
+  const startReadingSet = (targetSkills: string[] = [], rewardKey?: string) => {
     startPracticeSession(() => router.push({
       pathname: '/ap/reading',
-      params: { sessionId: `${Date.now()}`, languageCode: langCode, ...targetSkillRouteParams(targetSkills) },
+      params: { sessionId: `${Date.now()}`, languageCode: langCode, ...(rewardKey ? { rewardKey } : {}), ...targetSkillRouteParams(targetSkills) },
     }), {
       title: 'Evidence finder',
       subtitle: 'A short AP-style passage generated around inference and detail traps.',
     });
   };
 
-  const startConversationSet = (targetSkills: string[] = []) => {
+  const startConversationSet = (targetSkills: string[] = [], rewardKey?: string) => {
     startPracticeSession(() => router.push({
       pathname: '/ap/conversation',
-      params: { languageCode: langCode, ...targetSkillRouteParams(targetSkills) },
+      params: { languageCode: langCode, ...(rewardKey ? { rewardKey } : {}), ...targetSkillRouteParams(targetSkills) },
     }), {
       title: 'Simulated conversation repair',
       subtitle: 'Four 20-second turns scored for delivery, task completion, and register.',
     });
   };
 
-  const startTextingSet = (targetSkills: string[] = []) => {
+  const startTextingSet = (targetSkills: string[] = [], rewardKey?: string) => {
     startPracticeSession(() => router.push({
       pathname: '/ap/texting',
-      params: { languageCode: langCode, ...targetSkillRouteParams(targetSkills) },
+      params: { languageCode: langCode, ...(rewardKey ? { rewardKey } : {}), ...targetSkillRouteParams(targetSkills) },
     }), {
       title: 'Text-chat register repair',
       subtitle: 'Timed written replies focused on language use, completion, and natural AP tone.',
@@ -2480,31 +2487,33 @@ export default function HomeScreen() {
   };
 
   const actionFromAIPlan = (action: AIDailyPlanAction): PlanAction => {
+    const actionId = `ai-${action.id}`;
+    const rewardKey = dailyPlanRewardKey(langCode, actionId);
     const config = {
       listening: {
         accent: Colors.teal,
         icon: <HeadphonesIcon size={25} color={Colors.teal} strokeWidth={2} />,
-        onPress: () => startListeningSet(action.targetSkills),
+        onPress: () => startListeningSet(action.targetSkills, rewardKey),
       },
       speaking: {
         accent: Colors.primary,
         icon: <MicrophoneIcon size={25} color={Colors.primary} strokeWidth={2} />,
-        onPress: () => startSpeakingDrill(action.targetSkills),
+        onPress: () => startSpeakingDrill(action.targetSkills, rewardKey),
       },
       reading: {
         accent: Colors.teal,
         icon: <FileTextIcon size={25} color={Colors.teal} strokeWidth={2} />,
-        onPress: () => startReadingSet(action.targetSkills),
+        onPress: () => startReadingSet(action.targetSkills, rewardKey),
       },
       conversation: {
         accent: Colors.primary,
         icon: <WaveformIcon size={25} color={Colors.primary} strokeWidth={2.2} />,
-        onPress: () => startConversationSet(action.targetSkills),
+        onPress: () => startConversationSet(action.targetSkills, rewardKey),
       },
       texting: {
         accent: Colors.primary,
         icon: <MessageCircleIcon size={25} color={Colors.primary} strokeWidth={2} />,
-        onPress: () => startTextingSet(action.targetSkills),
+        onPress: () => startTextingSet(action.targetSkills, rewardKey),
       },
       mock: {
         accent: Colors.primary,
@@ -2514,7 +2523,7 @@ export default function HomeScreen() {
     }[action.mode];
 
     return {
-      id: `ai-${action.id}`,
+      id: actionId,
       title: action.title,
       task: action.task,
       rubric: action.rubric,
@@ -2524,6 +2533,7 @@ export default function HomeScreen() {
       accent: config.accent,
       icon: config.icon,
       targetSkills: action.targetSkills,
+      rewardKey,
       onPress: config.onPress,
     };
   };
@@ -2539,7 +2549,8 @@ export default function HomeScreen() {
       why: 'Start with a short AP-style reply so Kibbo can read your register and sentence control.',
       accent: Colors.primary,
       icon: <MessageCircleIcon size={25} color={Colors.primary} strokeWidth={2} />,
-      onPress: startTextingSet,
+      rewardKey: dailyPlanRewardKey(langCode, 'starter-texting'),
+      onPress: () => startTextingSet([], dailyPlanRewardKey(langCode, 'starter-texting')),
     }
     : weakSignal.key === 'Delivery'
       ? {
@@ -2552,7 +2563,8 @@ export default function HomeScreen() {
         why: 'Tighten pacing and complete answers under the AP timer.',
         accent: Colors.teal,
         icon: <MicrophoneIcon size={25} color={Colors.teal} strokeWidth={2} />,
-        onPress: startSpeakingDrill,
+        rewardKey: dailyPlanRewardKey(langCode, 'delivery'),
+        onPress: () => startSpeakingDrill([], dailyPlanRewardKey(langCode, 'delivery')),
       }
       : weakSignal.key === 'Language use'
         ? {
@@ -2565,7 +2577,8 @@ export default function HomeScreen() {
           why: 'Repair register, sentence control, and natural replies.',
           accent: Colors.primary,
           icon: <MessageCircleIcon size={25} color={Colors.primary} strokeWidth={2} />,
-          onPress: startTextingSet,
+          rewardKey: dailyPlanRewardKey(langCode, 'texting'),
+          onPress: () => startTextingSet([], dailyPlanRewardKey(langCode, 'texting')),
         }
         : {
           id: 'listening',
@@ -2577,7 +2590,8 @@ export default function HomeScreen() {
           why: 'Target missed details with short exact-answer audio reps.',
           accent: Colors.teal,
           icon: <HeadphonesIcon size={25} color={Colors.teal} strokeWidth={2} />,
-        onPress: startListeningSet,
+        rewardKey: dailyPlanRewardKey(langCode, 'listening'),
+        onPress: () => startListeningSet([], dailyPlanRewardKey(langCode, 'listening')),
       };
 
   const fallbackPlanActions: PlanAction[] = [
@@ -2592,7 +2606,8 @@ export default function HomeScreen() {
       why: 'Train inference, supporting detail, and distractor resistance.',
       accent: Colors.teal,
       icon: <FileTextIcon size={25} color={Colors.teal} strokeWidth={2} />,
-      onPress: startReadingSet,
+      rewardKey: dailyPlanRewardKey(langCode, 'reading'),
+      onPress: () => startReadingSet([], dailyPlanRewardKey(langCode, 'reading')),
     },
     {
       id: 'conversation',
@@ -2604,7 +2619,8 @@ export default function HomeScreen() {
       why: 'Four turns to check whether the weak pattern improves.',
       accent: Colors.primary,
       icon: <WaveformIcon size={25} color={Colors.primary} strokeWidth={2.2} />,
-      onPress: startConversationSet,
+      rewardKey: dailyPlanRewardKey(langCode, 'conversation'),
+      onPress: () => startConversationSet([], dailyPlanRewardKey(langCode, 'conversation')),
     },
   ];
   const aiPlanActions = aiDailyPlan?.actions.map(actionFromAIPlan) ?? [];

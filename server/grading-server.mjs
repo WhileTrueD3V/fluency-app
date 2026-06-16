@@ -869,7 +869,9 @@ function contentGenerationPrompt(payload) {
     : payload?.mode === 'reading'
       ? [
         'Return ReadingPassageSet objects with exactly: id, passage, translation, context, title, questions, difficulty, category.',
-        'Each questions item must have id, question, choices, correctIndex.',
+        'Each questions item must have id, question, choices, correctIndex, evidence, keyword, explanation.',
+        'For each reading question, evidence must be the shortest exact Japanese sentence or phrase from the passage that proves the correct answer.',
+        'keyword must be the decisive Japanese cue word or phrase inside that evidence. explanation must briefly explain in English why that cue proves the answer.',
         'Each passage should have 2-4 questions, and choices must contain exactly 4 English answer choices.',
         'Harder levels should use longer passages, harder kanji, denser information, and less beginner-style wording or furigana-style support.',
         'Do not include inline furigana, romaji, bracketed readings, or parenthetical pronunciation in the passage. The app handles readings and should only show them for non-AP kanji.',
@@ -877,7 +879,7 @@ function contentGenerationPrompt(payload) {
         'Questions must be linked to the same passage and should mix detail, purpose, inference, and context.',
         'Do not reveal the passage translation through the questions or choices.',
         'Vary the text genre: notice, email, flyer, schedule note, classroom message, short article, review, or message thread.',
-        'Avoid repeating the same topic family, source type, answer pattern, or surface wording used by recentPromptIds.',
+        'Avoid repeating the same topic family, source type, answer pattern, correct-answer logic, evidence cue, or surface wording used by recentPromptIds and generatedPromptSummaries.',
         'Every set in a batch must feel like a different reading source, not another version of the same notice.',
       ]
       : payload?.mode === 'speaking'
@@ -952,7 +954,7 @@ function dailyPlanPrompt(payload) {
   return [
     'You are Kibbo, an ultra-personalized AP Japanese coach.',
     'Create today’s AP Japanese practice plan from the learner profile. Do not output generic lessons.',
-    'Choose work that repairs weakMemory, weak rubric evidence, recentMistakes, and recentAnswerPatterns while avoiding repeated topics from generatedPromptSummaries and recentPromptIds.',
+    'Choose work that repairs weakMemory, weak rubric evidence, recentMistakes, and recentAnswerPatterns while avoiding repeated topics, answer logic, wording, evidence cues, roles, and situations from generatedPromptSummaries and recentPromptIds.',
     'weakMemory should influence the plan whenever it contains recurring topic/vocab/rubric misses.',
     ...noRepeatGuidance(payload),
     'The daily plan may target the same weak skill as recent work, but the action titles/tasks must use fresh AP situations, not the same train/cafe/store/late-arrival/source family called out in the novelty constraints.',

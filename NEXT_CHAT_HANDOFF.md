@@ -521,6 +521,25 @@ Things still impossible to truthfully finish without the user/account/device:
 - Apple IAP product setup and receipt validation decisions.
 - Final legal review and public Privacy/Terms URLs.
 
+## Latest Daily Plan / Drill Quality Fixes
+
+Latest local pass completed without paid AI calls:
+
+- Daily plan cache signatures are now stable for the day in `utils/aiPlan.ts`, so completing a drill no longer immediately regenerates/restocks the three daily plan sessions.
+- Home daily-plan actions now carry stable per-day `rewardKey` values through listening, reading, speaking, conversation, and texting routes. Completed daily-plan sessions are matched by reward key, so each item can become complete and stay complete for that day.
+- Mobile keeps the coach-picked item separate from the `Next` list after completion. When all daily-plan actions are done, the day can show complete instead of endlessly replacing work.
+- Reading AI schema now includes per-question `evidence`, `keyword`, and `explanation`. Wrong-answer feedback in `app/ap/reading.tsx` shows the correct answer, the evidence line from the passage with full furigana, the key cue, and a short explanation.
+- Reading repeat prevention now includes question text, choices, correct answers, evidence, and keywords in generated prompt history matching.
+- Speaking naturalness scoring in `app/speaking/translation.tsx` is less exact-answer based and more focused on Japanese-script shape, natural endings, register fit, length balance, and delivery confidence.
+- Browser/mobile-preview recording and `Play yours` were fixed through web `MediaRecorder` support in `hooks/useVoiceRecorder.ts` and browser audio playback in `app/speaking/translation.tsx`.
+- Server reading prompts now explicitly require evidence/key cue/explanation and avoid repeated answer logic/evidence cues.
+
+Verification after this pass:
+
+- `npx tsc --noEmit` passed.
+- `node --check server/grading-server.mjs` passed.
+- `npm run build:web` passed and exported `dist/_expo/static/js/web/entry-58cab59dbb83dc5873f7005e2d069ee4.js`.
+
 ## What Is Still Left
 
 The main remaining work is not the core personalization plumbing. It is:
