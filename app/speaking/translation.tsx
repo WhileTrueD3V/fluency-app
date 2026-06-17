@@ -61,6 +61,7 @@ import { RecordButton } from '@/components/RecordButton';
 import { XpBurst } from '@/components/XpBurst';
 import { Card } from '@/components/ui/Card';
 import { DrillHeader } from '@/components/DrillHeader';
+import { DrillLoadRecovery } from '@/components/DrillLoadRecovery';
 import { DrillLoadingState } from '@/components/DrillLoadingState';
 import { APP_COMPACT_BREAKPOINT } from '@/components/AppFooterTabs';
 import { BookmarkIcon } from '@/components/Icons';
@@ -288,6 +289,7 @@ export default function TranslationScreen() {
   const [recordingUri, setRecordingUri] = useState<string | null>(null);
   const [editableTranscript, setEditableTranscript] = useState('');
   const [scoredTranscript, setScoredTranscript] = useState('');
+  const [isPromptLoading, setIsPromptLoading] = useState(true);
 
   const flashOpacity = useRef(new Animated.Value(0)).current;
   const cardScale = useRef(new Animated.Value(1)).current;
@@ -307,6 +309,7 @@ export default function TranslationScreen() {
     const loadRun = promptLoadRunRef.current + 1;
     promptLoadRunRef.current = loadRun;
     let cancelled = false;
+    setIsPromptLoading(true);
     setPrompts([]);
     setHydratedProgress(null);
     getPrefs().then(async (p) => {
@@ -337,6 +340,7 @@ export default function TranslationScreen() {
       if (savedPrompt) {
         setPrompts([savedPrompt]);
         setCurrentIdx(0);
+        setIsPromptLoading(false);
         return;
       }
 
@@ -355,6 +359,7 @@ export default function TranslationScreen() {
         setEditableTranscript(storedProgress?.editableTranscript ?? '');
         setScoredTranscript(storedProgress?.scoredTranscript ?? '');
         setShowHint(storedProgress?.showHint ?? false);
+        setIsPromptLoading(false);
         return;
       }
 
@@ -403,6 +408,7 @@ export default function TranslationScreen() {
       setPrompts(nextPrompts);
       await saveDrillSessionContent(code, 'speaking', sessionId, nextPrompts);
       setCurrentIdx(0);
+      setIsPromptLoading(false);
       if (nextPrompts.length > 0) {
         void recordPromptExposure(code, 'speaking', nextPrompts.flatMap(practiceRepeatKeys));
       }
@@ -423,6 +429,11 @@ export default function TranslationScreen() {
             'no punctuation-dependent prompts',
           ],
         });
+      }
+    }).catch(() => {
+      if (promptLoadRunRef.current === loadRun && !cancelled) {
+        setPrompts([]);
+        setIsPromptLoading(false);
       }
     });
     return () => {
@@ -847,7 +858,11 @@ export default function TranslationScreen() {
   if (!currentPrompt) {
     return (
       <SafeAreaView style={styles.safe}>
-        <DrillLoadingState mode="speaking" />
+        {isPromptLoading ? (
+          <DrillLoadingState mode="speaking" />
+        ) : (
+          <DrillLoadRecovery onAction={goBack} />
+        )}
       </SafeAreaView>
     );
   }

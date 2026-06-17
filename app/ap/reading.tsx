@@ -14,6 +14,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { AnswerChoice } from '@/components/AnswerChoice';
 import { APP_COMPACT_BREAKPOINT } from '@/components/AppFooterTabs';
 import { DrillHeader } from '@/components/DrillHeader';
+import { DrillLoadRecovery } from '@/components/DrillLoadRecovery';
 import { DrillLoadingState } from '@/components/DrillLoadingState';
 import { FuriganaText } from '@/components/FuriganaText';
 import { XpBurst } from '@/components/XpBurst';
@@ -456,7 +457,7 @@ export default function APReadingSession() {
       setStreak(0);
       setBestStreak(0);
       setTotalXP(0);
-      setReady(nextPassages.length > 0);
+      setReady(true);
       setSavedIds(new Set(
         savedItems
           .filter((item) => item.type === 'reading' && item.languageCode === code)
@@ -481,7 +482,12 @@ export default function APReadingSession() {
         });
       }
     };
-    void load();
+    void load().catch(() => {
+      if (!cancelled) {
+        setPassages([]);
+        setReady(true);
+      }
+    });
 
     return () => {
       cancelled = true;
@@ -716,10 +722,18 @@ export default function APReadingSession() {
     router.replace(params.mockId ? '/mock' : '/(home)');
   };
 
-  if (!ready || passages.length === 0) {
+  if (!ready) {
     return (
       <SafeAreaView style={styles.safe}>
         <DrillLoadingState mode="reading" />
+      </SafeAreaView>
+    );
+  }
+
+  if (passages.length === 0) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <DrillLoadRecovery onAction={exitSession} />
       </SafeAreaView>
     );
   }

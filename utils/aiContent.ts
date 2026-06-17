@@ -33,6 +33,22 @@ export interface AIContentResponse {
   qualityNotes: string[];
 }
 
+function timeoutValue<T>(timeoutMs: number, value: T, onTimeout?: () => void) {
+  let timeoutId: ReturnType<typeof globalThis.setTimeout> | null = null;
+  const promise = new Promise<T>((resolve) => {
+    timeoutId = globalThis.setTimeout(() => {
+      onTimeout?.();
+      resolve(value);
+    }, timeoutMs);
+  });
+  return {
+    promise,
+    clear: () => {
+      if (timeoutId) globalThis.clearTimeout(timeoutId);
+    },
+  };
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object';
 }
@@ -142,17 +158,20 @@ export async function generatePracticeContent(
   if (!endpoint) return null;
 
   const controller = new AbortController();
-  const timeout = globalThis.setTimeout(() => controller.abort(), timeoutMs);
+  const abortTimeout = timeoutValue<Response | null>(timeoutMs, null, () => controller.abort());
 
   try {
-    const response = await fetch(`${endpoint}/generate-practice-content`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(request),
-      signal: controller.signal,
-    });
+    const response = await Promise.race([
+      fetch(`${endpoint}/generate-practice-content`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(request),
+        signal: controller.signal,
+      }),
+      abortTimeout.promise,
+    ]);
 
-    if (!response.ok) return null;
+    if (!response || !response.ok) return null;
     const json = await response.json() as unknown;
     if (!isRecord(json) || !Array.isArray(json.items)) return null;
 
@@ -165,6 +184,6 @@ export async function generatePracticeContent(
   } catch {
     return null;
   } finally {
-    globalThis.clearTimeout(timeout);
+    abortTimeout.clear();
   }
 }

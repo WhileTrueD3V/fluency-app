@@ -635,6 +635,37 @@ Verification after this pass:
 - `npm run build:web` passed and exported `dist/_expo/static/js/web/entry-a93c1f8623e26d9a54c7248675c1b040.js`.
 - Browser sanity check loaded `http://127.0.0.1:8083/` with the new bundle and meaningful Kibbo content. The only browser warnings observed were the existing React Native Web `useNativeDriver` fallback warnings.
 
+## Latest Drill Loading Timeout Guard - June 17, 2026
+
+User reported a drill loading screen sitting for about 8 minutes. That is now treated as a bug; drills should warm briefly and then recover/fall back instead of spinning forever.
+
+Fixes applied:
+
+- `utils/aiContent.ts` now aborts generated practice content fetches after a short client timeout and returns `null` so local fallback/recovery can take over.
+- `utils/aiPlan.ts` now aborts daily-plan fetches after `9000ms` and falls back to non-AI plan behavior instead of hanging Home.
+- `utils/aiGrading.ts` now aborts AP review fetches after `18000ms` and returns the local rubric review.
+- `utils/aiSpeaking.ts` now aborts speaking review fetches after `12000ms` and returns `null`.
+- `server/grading-server.mjs` now wraps OpenAI, Anthropic, and Gemini provider calls with a server-side timeout. Default is `35000ms`, configurable with `AI_PROVIDER_TIMEOUT_MS`, and `/health` exposes the configured timeout.
+- `components/DrillLoadRecovery.tsx` was added as a shared recovery surface for stalled drills.
+- Listening, reading, speaking translation, AP conversation, and AP texting now split loading from recovery. Empty/stalled loads show a clear recovery action instead of returning to the loading screen.
+- `components/DrillLoadingState.tsx` copy now says Kibbo only waits briefly and opens a backup if fresh AI work stalls.
+
+Important behavior:
+
+- No paid AI calls were made during this fix.
+- With no local AI server on `localhost:8787`, a direct listening drill route now exits loading and shows `Fresh set stalled` instead of spinning indefinitely.
+- If all local fallback content is blocked by repeat-history guards, the recovery surface is preferable to reusing stale repeats or waiting forever.
+
+Verification after this pass:
+
+- `node --check server/grading-server.mjs` passed.
+- `npx tsc --noEmit` passed.
+- `npm run build:web` passed and exported `dist/_expo/static/js/web/entry-5596199f13339d976c9b79b691f5c450.js`.
+- `npm run validate:launch` passed with the existing bundle-id warning.
+- `npm run ai:usage` still shows 48 logged calls / about `4.2491` cents lifetime, confirming no new paid AI usage.
+- Browser smoke loaded `http://127.0.0.1:8083/?fresh=timeout-guard-final` with meaningful Kibbo content and no framework overlay.
+- Browser smoke loaded `http://127.0.0.1:8083/listening/session?languageCode=ja&fresh=timeout-guard-final`; after several seconds it showed the recovery surface with no framework overlay or relevant console errors.
+
 ## What Is Still Left
 
 The main remaining work is not the core personalization plumbing. It is:

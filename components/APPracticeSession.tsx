@@ -62,6 +62,7 @@ import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
 import { useVoiceRecorder } from '@/hooks/useVoiceRecorder';
 import { BookmarkIcon, CheckIcon, MicrophoneIcon, StopIcon, WaveformIcon } from '@/components/Icons';
 import { DrillHeader } from '@/components/DrillHeader';
+import { DrillLoadRecovery } from '@/components/DrillLoadRecovery';
 import { DrillLoadingState } from '@/components/DrillLoadingState';
 
 const CONVERSATION_TURN_SECONDS = 20;
@@ -318,10 +319,14 @@ export function APPracticeSession({ mode }: { mode: APPracticeMode }) {
         ], 1, recentPromptIds);
       }
       const localSets = getAPPracticeSets(mode, code);
-      const nextSet = selectPracticeItems([
+      const selectedSets = selectPracticeItems([
         ...cachedSets,
         ...localSets,
-      ], 1, recentPromptIds, cachedSets)[0] ?? null;
+      ], 1, recentPromptIds, cachedSets);
+      const localBackup = localSets.find(
+        (candidate) => !practiceRepeatKeys(candidate).some((key) => recentPromptIds.includes(key)),
+      ) ?? localSets[0] ?? null;
+      const nextSet = selectedSets[0] ?? localBackup ?? cachedSets[0] ?? null;
       if (!nextSet) {
         setHydratedProgress(null);
         setPracticeSet(null);
@@ -351,7 +356,13 @@ export function APPracticeSession({ mode }: { mode: APPracticeMode }) {
         });
       }
     };
-    void loadSet();
+    void loadSet().catch(() => {
+      if (!cancelled) {
+        setHydratedProgress(null);
+        setPracticeSet(null);
+        setIsLoadingSet(false);
+      }
+    });
     return () => {
       cancelled = true;
     };
@@ -699,7 +710,7 @@ export function APPracticeSession({ mode }: { mode: APPracticeMode }) {
     saveAfterReviewRef.current = true;
   };
 
-  if (isLoadingSet || !set) {
+  if (isLoadingSet) {
     return (
       <SafeAreaView style={styles.safe}>
         <DrillLoadingState
@@ -709,6 +720,14 @@ export function APPracticeSession({ mode }: { mode: APPracticeMode }) {
             ? 'Preparing four spoken turns with your level and recent AP weak spots.'
             : 'Preparing four timed messages around your register and clarity patterns.'}
         />
+      </SafeAreaView>
+    );
+  }
+
+  if (!set) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <DrillLoadRecovery onAction={exit} />
       </SafeAreaView>
     );
   }

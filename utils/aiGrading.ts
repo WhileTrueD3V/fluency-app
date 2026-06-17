@@ -13,6 +13,22 @@ export interface APGradingResult extends APSessionReview {
 
 const AP_GRADING_TIMEOUT_MS = 18000;
 
+function timeoutValue<T>(timeoutMs: number, value: T, onTimeout?: () => void) {
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+  const promise = new Promise<T>((resolve) => {
+    timeoutId = setTimeout(() => {
+      onTimeout?.();
+      resolve(value);
+    }, timeoutMs);
+  });
+  return {
+    promise,
+    clear: () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    },
+  };
+}
+
 export function gradeAPSessionLocally(
   set: APPromptSet,
   answers: string[],
@@ -36,21 +52,24 @@ export async function gradeAPSessionWithAI(
 
   if (endpoint && hasAnyAnswer) {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), AP_GRADING_TIMEOUT_MS);
+    const abortTimeout = timeoutValue<Response | null>(AP_GRADING_TIMEOUT_MS, null, () => controller.abort());
     try {
-      const response = await fetch(`${endpoint.replace(/\/$/, '')}/grade-ap-session`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        signal: controller.signal,
-        body: JSON.stringify({
-          set,
-          answers,
-          localReview,
-          feedbackLevel,
+      const response = await Promise.race([
+        fetch(`${endpoint.replace(/\/$/, '')}/grade-ap-session`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          signal: controller.signal,
+          body: JSON.stringify({
+            set,
+            answers,
+            localReview,
+            feedbackLevel,
+          }),
         }),
-      });
+        abortTimeout.promise,
+      ]);
 
-      if (response.ok) {
+      if (response?.ok) {
         const remote = await response.json() as APSessionReview & { summary?: string };
         const sanitized = sanitizeAPReview(remote, set);
         return {
@@ -62,7 +81,7 @@ export async function gradeAPSessionWithAI(
     } catch {
       // Local rubric remains the reliable offline fallback.
     } finally {
-      clearTimeout(timeoutId);
+      abortTimeout.clear();
     }
   }
 

@@ -219,9 +219,9 @@ export function DrillLoadingState({
             <FlameIcon size={18} color={Colors.primary} strokeWidth={2.1} />
           </Animated.View>
           <View style={styles.cacheCopy}>
-            <Text style={styles.cacheNoteKicker}>First-time build</Text>
+            <Text style={styles.cacheNoteKicker}>Fresh work warmup</Text>
             <Text style={styles.cacheNoteText}>
-              First build takes the longest. After Kibbo warms this drill, fresh sets usually open much faster.
+              Kibbo only waits briefly here. If fresh AI work stalls, this session opens a backup set instead.
             </Text>
           </View>
         </View>

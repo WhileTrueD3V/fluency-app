@@ -105,6 +105,24 @@ async function setCachedDailyPlan(languageCode: LanguageCode, signature: string,
   }
 }
 
+const DAILY_PLAN_TIMEOUT_MS = 9000;
+
+function timeoutValue<T>(timeoutMs: number, value: T, onTimeout?: () => void) {
+  let timeoutId: ReturnType<typeof globalThis.setTimeout> | null = null;
+  const promise = new Promise<T>((resolve) => {
+    timeoutId = globalThis.setTimeout(() => {
+      onTimeout?.();
+      resolve(value);
+    }, timeoutMs);
+  });
+  return {
+    promise,
+    clear: () => {
+      if (timeoutId) globalThis.clearTimeout(timeoutId);
+    },
+  };
+}
+
 export async function generateDailyPlan(languageCode: LanguageCode): Promise<AIDailyPlan | null> {
   const endpoint = getAIEndpoint();
   if (!endpoint || languageCode !== 'ja') return null;
@@ -114,13 +132,19 @@ export async function generateDailyPlan(languageCode: LanguageCode): Promise<AID
   const cached = await getCachedDailyPlan(languageCode, signature, profile);
   if (cached) return cached;
 
+  const controller = new AbortController();
+  const abortTimeout = timeoutValue<Response | null>(DAILY_PLAN_TIMEOUT_MS, null, () => controller.abort());
   try {
-    const response = await fetch(`${endpoint}/generate-daily-plan`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ languageCode, profile }),
-    });
-    if (!response.ok) return null;
+    const response = await Promise.race([
+      fetch(`${endpoint}/generate-daily-plan`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ languageCode, profile }),
+        signal: controller.signal,
+      }),
+      abortTimeout.promise,
+    ]);
+    if (!response || !response.ok) return null;
     const json = await response.json() as { summary?: unknown; actions?: unknown };
     const actions = Array.isArray(json.actions)
       ? json.actions.map(sanitizeAction).filter((item): item is AIDailyPlanAction => item !== null).slice(0, 3)
@@ -135,5 +159,7 @@ export async function generateDailyPlan(languageCode: LanguageCode): Promise<AID
     return plan;
   } catch {
     return null;
+  } finally {
+    abortTimeout.clear();
   }
 }

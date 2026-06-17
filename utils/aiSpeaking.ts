@@ -47,6 +47,24 @@ export interface AISpeakingReviewUnavailable {
 
 export type AISpeakingReviewResponse = AISpeakingReview | AISpeakingReviewUnavailable;
 
+const SPEAKING_REVIEW_TIMEOUT_MS = 12000;
+
+function timeoutValue<T>(timeoutMs: number, value: T, onTimeout?: () => void) {
+  let timeoutId: ReturnType<typeof globalThis.setTimeout> | null = null;
+  const promise = new Promise<T>((resolve) => {
+    timeoutId = globalThis.setTimeout(() => {
+      onTimeout?.();
+      resolve(value);
+    }, timeoutMs);
+  });
+  return {
+    promise,
+    clear: () => {
+      if (timeoutId) globalThis.clearTimeout(timeoutId);
+    },
+  };
+}
+
 function clampScore(value: unknown, fallback: number) {
   const score = typeof value === 'number' && Number.isFinite(value) ? value : fallback;
   return Math.max(0, Math.min(100, Math.round(score)));
@@ -74,14 +92,21 @@ export async function reviewSpeakingAttemptWithAI(
   const endpoint = getAIEndpoint();
   if (!endpoint || !request.transcript.trim()) return null;
   const feedbackLevel = request.feedbackLevel ?? await getAIFeedbackLevel();
+  const controller = new AbortController();
+  const abortTimeout = timeoutValue<Response | null>(SPEAKING_REVIEW_TIMEOUT_MS, null, () => controller.abort());
 
   try {
-    const response = await fetch(`${endpoint}/review-speaking-attempt`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ ...request, feedbackLevel }),
-    });
+    const response = await Promise.race([
+      fetch(`${endpoint}/review-speaking-attempt`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ ...request, feedbackLevel }),
+        signal: controller.signal,
+      }),
+      abortTimeout.promise,
+    ]);
 
+    if (!response) return null;
     if (!response.ok) {
       let error = `AI review unavailable (${response.status}).`;
       try {
@@ -120,5 +145,7 @@ export async function reviewSpeakingAttemptWithAI(
     };
   } catch {
     return null;
+  } finally {
+    abortTimeout.clear();
   }
 }

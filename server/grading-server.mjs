@@ -18,6 +18,10 @@ const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL ?? 'claude-haiku-4-5-2025100
 const AI_MAX_COST_CENTS_PER_CREDIT = Number(process.env.AI_MAX_COST_CENTS_PER_CREDIT ?? 1);
 const AI_ENFORCE_COST_CAP = process.env.AI_ENFORCE_COST_CAP !== '0';
 const AI_COST_SAFETY_MULTIPLIER = Number(process.env.AI_COST_SAFETY_MULTIPLIER ?? 1.25);
+const configuredProviderTimeoutMs = Number(process.env.AI_PROVIDER_TIMEOUT_MS ?? 35000);
+const AI_PROVIDER_TIMEOUT_MS = Number.isFinite(configuredProviderTimeoutMs)
+  ? Math.max(5000, configuredProviderTimeoutMs)
+  : 35000;
 const EXPOSE_AI_COSTS = process.env.EXPOSE_AI_COSTS === '1';
 const FEEDBACK_LOG_PATH = process.env.KIBBO_FEEDBACK_LOG_PATH ?? path.resolve('data/feedback-submissions.jsonl');
 const AI_USAGE_LOG_PATH = process.env.KIBBO_AI_USAGE_LOG_PATH ?? path.resolve('data/ai-usage.jsonl');
@@ -67,6 +71,35 @@ const ANTHROPIC_FALLBACK_MODELS = [
 ].filter((model, index, models) => model && models.indexOf(model) === index);
 const anthropicModelCache = { models: null, fetchedAt: 0 };
 const AP_RUBRICS = ['Task completion', 'Delivery', 'Language use', 'Cultural knowledge'];
+
+async function fetchJsonWithTimeout(url, options, timeoutMs = AI_PROVIDER_TIMEOUT_MS) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(url, { ...options, signal: controller.signal });
+    let json = null;
+    try {
+      json = await response.json();
+    } catch {
+      json = { error: 'AI provider returned a non-JSON response.' };
+    }
+    return { response, json };
+  } catch (error) {
+    if (error?.name === 'AbortError') {
+      return {
+        response: { ok: false, status: 504 },
+        json: {
+          error: 'AI provider request timed out.',
+          code: 'AI_PROVIDER_TIMEOUT',
+          timeoutMs,
+        },
+      };
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
 
 function activeProvider() {
   if (AI_PROVIDER === 'openai' || AI_PROVIDER === 'gemini' || AI_PROVIDER === 'anthropic') {
@@ -1017,14 +1050,13 @@ async function listAnthropicModels() {
     return anthropicModelCache.models;
   }
 
-  const response = await fetch('https://api.anthropic.com/v1/models', {
+  const { response, json } = await fetchJsonWithTimeout('https://api.anthropic.com/v1/models', {
     method: 'GET',
     headers: {
       'x-api-key': ANTHROPIC_API_KEY,
       'anthropic-version': '2023-06-01',
     },
   });
-  const json = await response.json();
   if (!response.ok || !Array.isArray(json.data)) return [];
 
   const models = json.data
@@ -1044,7 +1076,7 @@ async function completeJsonWithGemini(prompt, config, task) {
     };
   }
 
-  const response = await fetch(
+  const { response, json } = await fetchJsonWithTimeout(
     `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`,
     {
       method: 'POST',
@@ -1063,7 +1095,6 @@ async function completeJsonWithGemini(prompt, config, task) {
     },
   );
 
-  const json = await response.json();
   if (!response.ok) return { ok: false, status: response.status, body: json };
 
   const outputText = extractGeminiOutputText(json);
@@ -1089,7 +1120,7 @@ async function completeJsonWithOpenAI(prompt, config, task) {
     };
   }
 
-  const response = await fetch('https://api.openai.com/v1/responses', {
+  const { response, json } = await fetchJsonWithTimeout('https://api.openai.com/v1/responses', {
     method: 'POST',
     headers: {
       authorization: `Bearer ${OPENAI_API_KEY}`,
@@ -1108,7 +1139,6 @@ async function completeJsonWithOpenAI(prompt, config, task) {
     }),
   });
 
-  const json = await response.json();
   if (!response.ok) {
     return { ok: false, status: response.status, body: json };
   }
@@ -1144,7 +1174,7 @@ async function completeJsonWithAnthropic(prompt, config, task) {
   ].filter((model, index, models) => model && models.indexOf(model) === index);
 
   for (const model of modelsToTry) {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    const { response, json } = await fetchJsonWithTimeout('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
         'x-api-key': ANTHROPIC_API_KEY,
@@ -1158,7 +1188,6 @@ async function completeJsonWithAnthropic(prompt, config, task) {
       }),
     });
 
-    const json = await response.json();
     if (response.ok) {
       const outputText = extractAnthropicOutputText(json);
       const usage = tokenUsageFromAnthropic(json, prompt);
@@ -1279,6 +1308,7 @@ async function handleRequest(req, res) {
           enforceCostCap: AI_ENFORCE_COST_CAP,
           safetyMultiplier: AI_COST_SAFETY_MULTIPLIER,
           exposeCosts: EXPOSE_AI_COSTS,
+          providerTimeoutMs: AI_PROVIDER_TIMEOUT_MS,
           taskCaps: Object.fromEntries(Object.entries(TASK_CONFIGS).map(([task, config]) => [
             task,
             {

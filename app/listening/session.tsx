@@ -39,6 +39,7 @@ import { useListeningSession, type ListeningSessionState } from '@/hooks/useList
 import { AnswerChoice } from '@/components/AnswerChoice';
 import { APP_COMPACT_BREAKPOINT } from '@/components/AppFooterTabs';
 import { AudioWaveform } from '@/components/AudioWaveform';
+import { DrillLoadRecovery } from '@/components/DrillLoadRecovery';
 import { DrillLoadingState } from '@/components/DrillLoadingState';
 import { DrillHeader } from '@/components/DrillHeader';
 import { FuriganaText } from '@/components/FuriganaText';
@@ -256,7 +257,7 @@ export default function ListeningSession() {
 
       setHydratedProgress(null);
       setQuestions(nextQuestions);
-      setReady(nextQuestions.length > 0);
+      setReady(true);
       await saveDrillSessionContent(code, 'listening', sessionId, nextQuestions);
       if (nextQuestions.length > 0) {
         void recordPromptExposure(code, 'listening', nextQuestions.flatMap(practiceRepeatKeys));
@@ -279,7 +280,12 @@ export default function ListeningSession() {
         });
       }
     };
-    void load();
+    void load().catch(() => {
+      if (!cancelled) {
+        setQuestions([]);
+        setReady(true);
+      }
+    });
 
     return () => {
       cancelled = true;
@@ -464,10 +470,18 @@ export default function ListeningSession() {
 
   const playbackRateLabel = `${playbackRate.toFixed(2)}x`;
 
-  if (!ready || questions.length === 0) {
+  if (!ready) {
     return (
       <SafeAreaView style={styles.safe}>
         <DrillLoadingState mode="listening" />
+      </SafeAreaView>
+    );
+  }
+
+  if (questions.length === 0) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <DrillLoadRecovery onAction={exitSession} />
       </SafeAreaView>
     );
   }
@@ -570,10 +584,10 @@ export default function ListeningSession() {
   if (!currentQuestion) {
     return (
       <SafeAreaView style={styles.safe}>
-        <DrillLoadingState
-          mode="listening"
-          title="Preparing listening round"
-          subtitle="Setting up the next prompt without changing your progress."
+        <DrillLoadRecovery
+          title="This listening round lost its place."
+          message="Kibbo stopped waiting instead of spinning forever. Go back and start a clean saved session."
+          onAction={exitSession}
         />
       </SafeAreaView>
     );
