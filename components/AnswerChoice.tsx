@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Pressable, Text, StyleSheet, Animated } from 'react-native';
 import { haptics } from '@/utils/haptics';
 import { Colors } from '@/constants/colors';
@@ -28,7 +28,7 @@ export function AnswerChoice({
   accent = Colors.primary,
 }: AnswerChoiceProps) {
   const scaleAnim = useRef(new Animated.Value(1)).current;
-  const hoverAnim = useRef(new Animated.Value(0)).current;
+  const [hovered, setHovered] = useState(false);
   const letters = ['A', 'B', 'C', 'D'];
 
   useEffect(() => {
@@ -53,14 +53,12 @@ export function AnswerChoice({
     onPress();
   };
 
-  const setHover = (hovered: boolean) => {
-    if (disabled || choiceState !== 'idle') return;
-    Animated.spring(hoverAnim, {
-      toValue: hovered ? 1 : 0,
-      friction: 7,
-      tension: 160,
-      useNativeDriver: false,
-    }).start();
+  const setHover = (nextHovered: boolean) => {
+    if (disabled || choiceState !== 'idle') {
+      setHovered(false);
+      return;
+    }
+    setHovered(nextHovered);
   };
 
   const pressIn = () => {
@@ -114,33 +112,15 @@ export function AnswerChoice({
   const isHighlighted = choiceState !== 'idle';
   const letterTextColor = isHighlighted ? '#fff' : Colors.textSub;
   const lowerEdge = isHighlighted ? s.border : Colors.borderBright;
-  const hoverBorder = hoverAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [s.border, accent],
-  });
-  const hoverBottom = hoverAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [lowerEdge, accent],
-  });
-  const hoverBg = hoverAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [s.bg, `${accent}0D`],
-  });
-  const hoverTranslateY = hoverAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, mobile ? -4 : -2],
-  });
-  const hoverShadowOpacity = hoverAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0.04, mobile ? 0.16 : 0.1],
-  });
-  const hoverShadowRadius = hoverAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [8, mobile ? 20 : 16],
-  });
+  const hoverBorder = hovered ? accent : s.border;
+  const hoverBottom = hovered ? accent : lowerEdge;
+  const hoverBg = hovered ? `${accent}0D` : s.bg;
+  const hoverTranslateY = hovered ? (mobile ? -3 : -2) : 0;
+  const hoverShadowOpacity = hovered ? (mobile ? 0.13 : 0.09) : 0.04;
+  const hoverShadowRadius = hovered ? (mobile ? 18 : 14) : 8;
 
   return (
-    <Animated.View style={{ transform: [{ scale: scaleAnim }, { translateY: hoverTranslateY }] }}>
+    <Animated.View style={[styles.choiceFrame, { transform: [{ scale: scaleAnim }, { translateY: hoverTranslateY }] }]}>
       <AnimatedPressable
         onPress={handlePress}
         disabled={disabled}
@@ -179,6 +159,11 @@ export function AnswerChoice({
 }
 
 const styles = StyleSheet.create({
+  choiceFrame: {
+    transitionProperty: 'transform',
+    transitionDuration: '140ms',
+    transitionTimingFunction: 'ease-out',
+  },
   choice: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -191,6 +176,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.04,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },
+    transitionProperty: 'background-color, border-color, box-shadow',
+    transitionDuration: '140ms',
+    transitionTimingFunction: 'ease-out',
   },
   choiceCompact: {
     gap: 11,
