@@ -128,7 +128,7 @@ function stopSpeech() {
   Speech.stop();
 }
 
-export function useListeningSession(questions: ListeningQuestion[], ttsLocale: string, awardXP = true, xpMultiplier = 1) {
+export function useListeningSession(questions: ListeningQuestion[], ttsLocale: string, awardXP = true, xpMultiplier = 1, initialState?: Partial<ListeningSessionState> | null) {
   const [state, setState] = useState<ListeningSessionState>({
     phase: 'idle',
     currentIndex: 0,
@@ -160,20 +160,22 @@ export function useListeningSession(questions: ListeningQuestion[], ttsLocale: s
     playbackRunRef.current += 1;
     stopSpeech();
     ttsRef.current = false;
+    const restoredIndex = Math.min(Math.max(0, initialState?.currentIndex ?? 0), Math.max(0, questions.length - 1));
+    const restoredPhase = initialState?.phase === 'playing' ? 'answering' : initialState?.phase;
     setState({
-      phase: 'idle',
-      currentIndex: 0,
+      phase: restoredPhase ?? 'idle',
+      currentIndex: restoredIndex,
       questions,
-      answers: [],
-      playCounts: {},
-      streak: 0,
-      bestStreak: 0,
-      totalXP: 0,
-      selectedIndex: null,
+      answers: initialState?.answers ?? [],
+      playCounts: initialState?.playCounts ?? {},
+      streak: initialState?.streak ?? 0,
+      bestStreak: initialState?.bestStreak ?? 0,
+      totalXP: initialState?.totalXP ?? 0,
+      selectedIndex: initialState?.selectedIndex ?? null,
       isPlaying: false,
       audioError: null,
     });
-  }, [questions]);
+  }, [questions, initialState]);
 
   const currentQuestion = state.questions[state.currentIndex] ?? null;
   const currentPlayCount = currentQuestion ? (state.playCounts[currentQuestion.id] ?? 0) : 0;

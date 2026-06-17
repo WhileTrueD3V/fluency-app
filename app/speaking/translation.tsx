@@ -21,6 +21,7 @@ import {
   getPrefs,
   getRecentPromptIds,
   getDrillSessionContent,
+  getDrillSessionProgress,
   getStartingLevelProfile,
   getSessionHistory,
   getStatsForLanguage,
@@ -28,6 +29,7 @@ import {
   isItemSaved,
   recordPromptExposure,
   saveDrillSessionContent,
+  saveDrillSessionProgress,
 } from '@/utils/storage';
 import { getRandomSpeakingPrompts, getSpeakingPromptById } from '@/data';
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
@@ -272,6 +274,7 @@ export default function TranslationScreen() {
     ]).slice(0, 10);
   const [prompts, setPrompts] = useState<SpeakingPrompt[]>(initialPrompts);
   const [currentIdx, setCurrentIdx] = useState(0);
+  const [hydratedProgress, setHydratedProgress] = useState<{ currentIdx?: number; phase?: Phase; result?: UnifiedSpeakingResult | null; sessionXP?: number; targetWasHeard?: boolean; recordingUri?: string | null; editableTranscript?: string; scoredTranscript?: string; showHint?: boolean } | null>(null);
   const [phase, setPhase] = useState<Phase>('prompt');
   const [result, setResult] = useState<UnifiedSpeakingResult | null>(null);
   const [langCode, setLangCode] = useState<LanguageCode>('ja');
@@ -304,6 +307,7 @@ export default function TranslationScreen() {
     promptLoadRunRef.current = loadRun;
     let cancelled = false;
     setPrompts([]);
+    setHydratedProgress(null);
     getPrefs().then(async (p) => {
       const code = ((params.languageCode as LanguageCode | undefined) ?? p.selectedLanguage ?? 'ja') as LanguageCode;
       const routeTargetSkills = parseTargetSkillsParam(params.targetSkills);
@@ -338,8 +342,18 @@ export default function TranslationScreen() {
       const sessionId = typeof params.sessionId === 'string' ? params.sessionId : null;
       const storedSessionPrompts = await getDrillSessionContent<SpeakingPrompt>(code, 'speaking', sessionId);
       if (storedSessionPrompts.length > 0) {
+        const storedProgress = await getDrillSessionProgress<{ currentIdx?: number; phase?: Phase; result?: UnifiedSpeakingResult | null; sessionXP?: number; targetWasHeard?: boolean; recordingUri?: string | null; editableTranscript?: string; scoredTranscript?: string; showHint?: boolean }>(code, 'speaking', sessionId);
+        setHydratedProgress(storedProgress);
         setPrompts(storedSessionPrompts);
-        setCurrentIdx(0);
+        setCurrentIdx(Math.min(Math.max(0, storedProgress?.currentIdx ?? 0), Math.max(0, storedSessionPrompts.length - 1)));
+        setPhase(storedProgress?.phase === 'recording' || storedProgress?.phase === 'evaluating' ? 'transcript' : storedProgress?.phase ?? 'prompt');
+        setResult(storedProgress?.result ?? null);
+        setSessionXP(storedProgress?.sessionXP ?? 0);
+        setTargetWasHeard(storedProgress?.targetWasHeard ?? false);
+        setRecordingUri(storedProgress?.recordingUri ?? null);
+        setEditableTranscript(storedProgress?.editableTranscript ?? '');
+        setScoredTranscript(storedProgress?.scoredTranscript ?? '');
+        setShowHint(storedProgress?.showHint ?? false);
         return;
       }
 
@@ -384,6 +398,7 @@ export default function TranslationScreen() {
         ...getRandomSpeakingPrompts(code, 10, 0, []),
       ], 10, recentPromptIds, cachedPrompts);
 
+      setHydratedProgress(null);
       setPrompts(nextPrompts);
       await saveDrillSessionContent(code, 'speaking', sessionId, nextPrompts);
       setCurrentIdx(0);
@@ -415,6 +430,7 @@ export default function TranslationScreen() {
   }, [params.languageCode, params.promptId, params.sessionId, params.targetSkills]);
 
   const language = getLanguage(langCode);
+  const activeSessionId = typeof params.sessionId === 'string' ? params.sessionId : null;
   const currentPrompt = prompts[currentIdx] ?? null;
   const targetSentence = currentPrompt?.acceptableAnswers[0] ?? '';
 
@@ -427,6 +443,21 @@ export default function TranslationScreen() {
     stopRecording,
     resetRecording,
   } = useVoiceRecorder();
+
+  useEffect(() => {
+    if (!activeSessionId || prompts.length === 0) return;
+    void saveDrillSessionProgress(langCode, 'speaking', activeSessionId, {
+      currentIdx,
+      phase,
+      result,
+      sessionXP,
+      targetWasHeard,
+      recordingUri,
+      editableTranscript,
+      scoredTranscript,
+      showHint,
+    });
+  }, [activeSessionId, currentIdx, editableTranscript, langCode, phase, prompts.length, recordingUri, result, scoredTranscript, sessionXP, showHint, targetWasHeard]);
 
   const stopTargetAudio = useCallback(() => {
     targetPlaybackRef.current += 1;

@@ -24,6 +24,7 @@ import {
   getPrefs,
   getRecentPromptIds,
   getDrillSessionContent,
+  getDrillSessionProgress,
   getStartingLevelProfile,
   getSessionHistory,
   getStatsForLanguage,
@@ -33,6 +34,7 @@ import {
   recordAPPracticeSession,
   recordPromptExposure,
   saveDrillSessionContent,
+  saveDrillSessionProgress,
   removeSavedItem,
   upsertSavedItem,
   xpForAPScore,
@@ -68,6 +70,17 @@ const REVIEW_HARD_TIMEOUT_MS = 20000;
 const AP_REVIEW_PREFIX = 'AP_REVIEW_JSON:';
 const AP_PROMPT_SET_PREFIX = 'AP_PROMPT_SET_JSON:';
 type ConversationTurnPhase = 'prompting' | 'answering';
+
+type APPracticeProgressState = {
+  turnIndex?: number;
+  secondsLeft?: number;
+  answers?: string[];
+  recordingUris?: Array<string | null>;
+  conversationPhase?: ConversationTurnPhase;
+  textDraft?: string;
+  review?: APGradingResult | null;
+  saveAfterReview?: boolean;
+};
 
 const INACTIVE_CHALLENGE_BOOST: ChallengeBoostState = {
   active: false,
@@ -167,6 +180,7 @@ export function APPracticeSession({ mode }: { mode: APPracticeMode }) {
   const [isTextAdvancing, setIsTextAdvancing] = useState(false);
   const [recordingUris, setRecordingUris] = useState<(string | null)[]>([null, null, null, null]);
   const [review, setReview] = useState<APGradingResult | null>(null);
+  const [hydratedProgress, setHydratedProgress] = useState<APPracticeProgressState | null>(null);
   const [isGrading, setIsGrading] = useState(false);
   const [reviewSecondsLeft, setReviewSecondsLeft] = useState(REVIEW_COUNTDOWN_SECONDS);
   const [saved, setSaved] = useState(false);
@@ -240,6 +254,7 @@ export function APPracticeSession({ mode }: { mode: APPracticeMode }) {
       const code = ((params.languageCode as LanguageCode | undefined) ?? prefs.selectedLanguage ?? 'ja') as LanguageCode;
       const routeTargetSkills = parseTargetSkillsParam(params.targetSkills);
       setLangCode(code);
+      setHydratedProgress(null);
 
       if (params.promptId) {
         const fallbackSet = getAPPracticeSetById(mode, code, params.promptId);
@@ -269,6 +284,8 @@ export function APPracticeSession({ mode }: { mode: APPracticeMode }) {
 
       const storedSessionSets = await getDrillSessionContent<APPromptSet>(code, mode, sessionId);
       if (storedSessionSets.length > 0) {
+        const storedProgress = await getDrillSessionProgress<APPracticeProgressState>(code, mode, sessionId);
+        setHydratedProgress(storedProgress);
         setPracticeSet(storedSessionSets[0]);
         setIsLoadingSet(false);
         return;
@@ -304,6 +321,7 @@ export function APPracticeSession({ mode }: { mode: APPracticeMode }) {
         ...cachedSets,
         ...localSets,
       ], 1, recentPromptIds, cachedSets)[0] ?? localSets[0] ?? getAPPracticeSetById(mode, 'ja');
+      setHydratedProgress(null);
       setPracticeSet(nextSet);
       await saveDrillSessionContent(code, mode, sessionId, [nextSet]);
       setIsLoadingSet(false);
@@ -334,32 +352,55 @@ export function APPracticeSession({ mode }: { mode: APPracticeMode }) {
 
   useEffect(() => {
     if (!practiceSet) return;
-    setTurnIndex(0);
-    setSecondsLeft(mode === 'conversation' ? CONVERSATION_TURN_SECONDS : TEXTING_TURN_SECONDS);
-    setAnswers(Array.from({ length: practiceSet.prompts.length }, () => ''));
-    setRecordingUris(Array.from({ length: practiceSet.prompts.length }, () => null));
-    setReview(null);
+    const blankAnswers = Array.from({ length: practiceSet.prompts.length }, () => '');
+    const blankUris = Array.from({ length: practiceSet.prompts.length }, () => null);
+    const nextAnswers = hydratedProgress?.answers?.length === practiceSet.prompts.length ? hydratedProgress.answers : blankAnswers;
+    const nextUris = hydratedProgress?.recordingUris?.length === practiceSet.prompts.length ? hydratedProgress.recordingUris : blankUris;
+    const nextTurnIndex = Math.min(Math.max(0, hydratedProgress?.turnIndex ?? 0), Math.max(0, practiceSet.prompts.length - 1));
+    setTurnIndex(nextTurnIndex);
+    setSecondsLeft(hydratedProgress?.secondsLeft ?? (mode === 'conversation' ? CONVERSATION_TURN_SECONDS : TEXTING_TURN_SECONDS));
+    setAnswers(nextAnswers);
+    answersRef.current = nextAnswers;
+    setRecordingUris(nextUris);
+    recordingUrisRef.current = nextUris;
+    setReview(hydratedProgress?.review ?? null);
     setIsGrading(false);
-    setSaveAfterReview(false);
-    saveAfterReviewRef.current = false;
-    completedRef.current = false;
+    setSaveAfterReview(hydratedProgress?.saveAfterReview ?? false);
+    saveAfterReviewRef.current = hydratedProgress?.saveAfterReview ?? false;
+    completedRef.current = Boolean(hydratedProgress?.review);
     transcriptRef.current = '';
-    textDraftRef.current = '';
+    textDraftRef.current = hydratedProgress?.textDraft ?? '';
     textAdvancingRef.current = false;
     turnFinishingRef.current = false;
     if (textAdvanceTimeoutRef.current) {
       clearTimeout(textAdvanceTimeoutRef.current);
       textAdvanceTimeoutRef.current = null;
     }
-    setTextDraft('');
+    setTextDraft(hydratedProgress?.textDraft ?? '');
     setIsTextAdvancing(false);
-    setConversationPhase(mode === 'conversation' ? 'prompting' : 'answering');
+    setConversationPhase(hydratedProgress?.conversationPhase ?? (mode === 'conversation' ? 'prompting' : 'answering'));
     setIsPromptPlaying(false);
     promptPlaybackRef.current += 1;
     Speech.stop();
     reset();
     resetRecording();
-  }, [mode, practiceSet, reset, resetRecording]);
+  }, [hydratedProgress, mode, practiceSet, reset, resetRecording]);
+
+  const activeSessionId = typeof params.sessionId === 'string' ? params.sessionId : null;
+
+  useEffect(() => {
+    if (!activeSessionId || !practiceSet) return;
+    void saveDrillSessionProgress(langCode, mode, activeSessionId, {
+      turnIndex,
+      secondsLeft,
+      answers,
+      recordingUris,
+      conversationPhase,
+      textDraft,
+      review,
+      saveAfterReview,
+    });
+  }, [activeSessionId, answers, conversationPhase, langCode, mode, practiceSet, recordingUris, review, saveAfterReview, secondsLeft, textDraft, turnIndex]);
 
   const beginConversationAnswer = useCallback(async (playbackRun: number) => {
     if (!isConversation || promptPlaybackRef.current !== playbackRun || completedRef.current) return;

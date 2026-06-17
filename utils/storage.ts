@@ -234,6 +234,7 @@ const KEYS = {
   FIRST_COMPLETION_FEEDBACK: '@fluent:firstCompletionFeedback',
   STARTING_LEVEL_PROFILE: '@fluent:startingLevelProfile',
   DRILL_SESSION_CONTENT: '@fluent:drillSessionContent',
+  DRILL_SESSION_PROGRESS: '@fluent:drillSessionProgress',
 } as const;
 
 const RECENT_PROMPT_LIMIT = 80;
@@ -1430,6 +1431,58 @@ export async function saveDrillSessionContent<T extends GeneratedPromptItem>(
     await AsyncStorage.setItem(KEYS.DRILL_SESSION_CONTENT, JSON.stringify(compact));
   } catch {
     // Session content is a credit-safety cache. If storage fails, the drill should still load.
+  }
+}
+
+type DrillSessionProgressCache = Record<string, {
+  languageCode: string;
+  type: PromptHistoryType;
+  sessionId: string;
+  state: unknown;
+  updatedAt: number;
+}>;
+
+export async function getDrillSessionProgress<T>(
+  languageCode: string,
+  type: PromptHistoryType,
+  sessionId?: string | null,
+): Promise<T | null> {
+  if (!sessionId) return null;
+  try {
+    const raw = await AsyncStorage.getItem(KEYS.DRILL_SESSION_PROGRESS);
+    const cache: DrillSessionProgressCache = raw ? JSON.parse(raw) : {};
+    const entry = cache[drillSessionContentKey(languageCode, type, sessionId)];
+    return entry?.state as T ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export async function saveDrillSessionProgress<T>(
+  languageCode: string,
+  type: PromptHistoryType,
+  sessionId: string | null | undefined,
+  state: T,
+): Promise<void> {
+  if (!sessionId) return;
+  try {
+    const raw = await AsyncStorage.getItem(KEYS.DRILL_SESSION_PROGRESS);
+    const cache: DrillSessionProgressCache = raw ? JSON.parse(raw) : {};
+    cache[drillSessionContentKey(languageCode, type, sessionId)] = {
+      languageCode,
+      type,
+      sessionId,
+      state,
+      updatedAt: Date.now(),
+    };
+    const compact = Object.fromEntries(
+      Object.entries(cache)
+        .sort(([, a], [, b]) => b.updatedAt - a.updatedAt)
+        .slice(0, 80),
+    );
+    await AsyncStorage.setItem(KEYS.DRILL_SESSION_PROGRESS, JSON.stringify(compact));
+  } catch {
+    // Progress is best-effort local resume state.
   }
 }
 

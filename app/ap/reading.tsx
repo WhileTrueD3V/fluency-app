@@ -41,6 +41,7 @@ import {
 import {
   getAppSettings,
   getDrillSessionContent,
+  getDrillSessionProgress,
   getStartingLevelProfile,
   getPrefs,
   getRecentPromptIds,
@@ -51,6 +52,7 @@ import {
   recordAttemptMemory,
   recordPromptExposure,
   saveDrillSessionContent,
+  saveDrillSessionProgress,
   recordReadingSession,
   removeSavedItem,
   saveItem,
@@ -281,6 +283,7 @@ export default function APReadingSession() {
   const xpTranslateY = useRef(new Animated.Value(12)).current;
   const xpScale = useRef(new Animated.Value(0.82)).current;
   const completedSessionRef = useRef<string | null>(null);
+  const hydratedTimerRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -327,20 +330,43 @@ export default function APReadingSession() {
       setChallengeBoost(boost);
       const storedSessionPassages = savedPassage ? [] : await getDrillSessionContent<ReadingPassageSet>(code, 'reading', sessionId);
       if (storedSessionPassages.length > 0) {
+        const storedProgress = await getDrillSessionProgress<{
+          currentPassageIndex?: number;
+          currentQuestionIndex?: number;
+          answers?: AnswerRecord[];
+          selectedIndex?: number | null;
+          phase?: 'answering' | 'feedback' | 'complete';
+          streak?: number;
+          bestStreak?: number;
+          totalXP?: number;
+          secondsLeft?: number;
+        }>(code, 'reading', sessionId);
+        const restoredPassages = storedSessionPassages.slice(0, passageCount);
         setSavedIds(new Set(
           savedItems
             .filter((item) => item.type === 'reading' && item.languageCode === code)
             .map((item) => item.promptId),
         ));
-        setPassages(storedSessionPassages.slice(0, passageCount));
-        setCurrentPassageIndex(0);
-        setCurrentQuestionIndex(0);
-        setAnswers([]);
-        setSelectedIndex(null);
-        setPhase('answering');
-        setStreak(0);
-        setBestStreak(0);
-        setTotalXP(0);
+        const restoredPassageIndex = Math.min(
+          Math.max(0, storedProgress?.currentPassageIndex ?? 0),
+          Math.max(0, restoredPassages.length - 1),
+        );
+        const restoredQuestionCount = restoredPassages[restoredPassageIndex]?.questions.length ?? 1;
+        const restoredQuestionIndex = Math.min(
+          Math.max(0, storedProgress?.currentQuestionIndex ?? 0),
+          Math.max(0, restoredQuestionCount - 1),
+        );
+        setPassages(restoredPassages);
+        setCurrentPassageIndex(restoredPassageIndex);
+        setCurrentQuestionIndex(restoredQuestionIndex);
+        setAnswers(storedProgress?.answers ?? []);
+        setSelectedIndex(storedProgress?.selectedIndex ?? null);
+        setPhase(storedProgress?.phase ?? 'answering');
+        setStreak(storedProgress?.streak ?? 0);
+        setBestStreak(storedProgress?.bestStreak ?? 0);
+        setTotalXP(storedProgress?.totalXP ?? 0);
+        setSecondsLeft(storedProgress?.secondsLeft ?? passageSeconds);
+        hydratedTimerRef.current = true;
         setReady(true);
         return;
       }
@@ -468,6 +494,7 @@ export default function APReadingSession() {
     ? Math.min(350, Math.max(235, height * 0.34))
     : Math.min(430, Math.max(280, height * 0.36));
   const readingTextScale = readingTextScaleFor(readingTextSize);
+  const activeSessionId = typeof params.sessionId === 'string' ? params.sessionId : null;
   const rewardKey = String(
     params.rewardKey
     ?? params.sessionId
@@ -486,9 +513,28 @@ export default function APReadingSession() {
   }, [langCode, rewardKey]);
 
   useEffect(() => {
-    if (!currentPassage || phase === 'complete') return;
+    if (!activeSessionId || !ready || passages.length === 0) return;
+    void saveDrillSessionProgress(langCode, 'reading', activeSessionId, {
+      currentPassageIndex,
+      currentQuestionIndex,
+      answers,
+      selectedIndex,
+      phase,
+      streak,
+      bestStreak,
+      totalXP,
+      secondsLeft,
+    });
+  }, [activeSessionId, answers, bestStreak, currentPassageIndex, currentQuestionIndex, langCode, passages.length, phase, ready, secondsLeft, selectedIndex, streak, totalXP]);
+
+  useEffect(() => {
+    if (!currentPassage || phase !== 'answering') return;
+    if (hydratedTimerRef.current) {
+      hydratedTimerRef.current = false;
+      return;
+    }
     setSecondsLeft(passageSeconds);
-  }, [currentPassageIndex, currentPassage, passageSeconds, phase]);
+  }, [currentPassageIndex, currentQuestionIndex, currentPassage, passageSeconds, phase]);
 
   useEffect(() => {
     if (!currentPassage || phase !== 'answering') return;

@@ -18,6 +18,7 @@ import { DrillAccents } from '@/constants/drillAccents';
 import {
   getPrefs,
   getDrillSessionContent,
+  getDrillSessionProgress,
   getRecentPromptIds,
   getSavedItems,
   getStartingLevelProfile,
@@ -28,12 +29,13 @@ import {
   recordListeningSession,
   recordPromptExposure,
   saveDrillSessionContent,
+  saveDrillSessionProgress,
   removeSavedItem,
   saveItem,
 } from '@/utils/storage';
 import { getListeningQuestionById, getRandomListeningQuestions } from '@/data';
 import { getLanguage, type LanguageCode } from '@/constants/languages';
-import { useListeningSession } from '@/hooks/useListeningSession';
+import { useListeningSession, type ListeningSessionState } from '@/hooks/useListeningSession';
 import { AnswerChoice } from '@/components/AnswerChoice';
 import { APP_COMPACT_BREAKPOINT } from '@/components/AppFooterTabs';
 import { AudioWaveform } from '@/components/AudioWaveform';
@@ -140,6 +142,7 @@ export default function ListeningSession() {
   }>();
   const [langCode, setLangCode] = React.useState<LanguageCode>('ja');
   const [questions, setQuestions] = React.useState<ListeningQuestion[]>([]);
+  const [hydratedProgress, setHydratedProgress] = React.useState<Partial<ListeningSessionState> | null>(null);
   const [ready, setReady] = React.useState(false);
   const [savedIds, setSavedIds] = React.useState<Set<string>>(new Set());
   const [showStreakModal, setShowStreakModal] = React.useState(true);
@@ -168,6 +171,7 @@ export default function ListeningSession() {
       const routeTargetSkills = parseTargetSkillsParam(params.targetSkills);
       setLangCode(code);
       setReady(false);
+      setHydratedProgress(null);
 
       const [savedItems, stats, recentPromptIds, storedGenerated, sessions] = await Promise.all([
         getSavedItems(),
@@ -202,6 +206,8 @@ export default function ListeningSession() {
       const sessionId = typeof params.sessionId === 'string' ? params.sessionId : null;
       const storedSessionQuestions = await getDrillSessionContent<ListeningQuestion>(code, 'listening', sessionId);
       if (storedSessionQuestions.length > 0) {
+        const storedProgress = await getDrillSessionProgress<Partial<ListeningSessionState>>(code, 'listening', sessionId);
+        setHydratedProgress(storedProgress);
         setQuestions(storedSessionQuestions.slice(0, sessionLength));
         setReady(true);
         return;
@@ -247,6 +253,7 @@ export default function ListeningSession() {
         ...getRandomListeningQuestions(code, sessionLength, 0, []),
       ], sessionLength, recentPromptIds, cachedQuestions);
 
+      setHydratedProgress(null);
       setQuestions(nextQuestions);
       setReady(nextQuestions.length > 0);
       await saveDrillSessionContent(code, 'listening', sessionId, nextQuestions);
@@ -296,6 +303,7 @@ export default function ListeningSession() {
   }, [langCode, rewardKey]);
 
   const language = getLanguage(langCode);
+  const activeSessionId = typeof params.sessionId === 'string' ? params.sessionId : null;
 
   const {
     state,
@@ -309,7 +317,21 @@ export default function ListeningSession() {
     stopAudio,
     submitAnswer,
     advanceAfterFeedback,
-  } = useListeningSession(questions, language.ttsLocale, !rewardClaimed, challengeBoost.multiplier);
+  } = useListeningSession(questions, language.ttsLocale, !rewardClaimed, challengeBoost.multiplier, hydratedProgress);
+
+  useEffect(() => {
+    if (!activeSessionId || !ready || questions.length === 0) return;
+    void saveDrillSessionProgress(langCode, 'listening', activeSessionId, {
+      phase: state.phase,
+      currentIndex: state.currentIndex,
+      answers: state.answers,
+      playCounts: state.playCounts,
+      streak: state.streak,
+      bestStreak: state.bestStreak,
+      totalXP: state.totalXP,
+      selectedIndex: state.selectedIndex,
+    });
+  }, [activeSessionId, langCode, questions.length, ready, state.answers, state.bestStreak, state.currentIndex, state.phase, state.playCounts, state.selectedIndex, state.streak, state.totalXP]);
 
   const exitSession = () => {
     stopAudio();

@@ -222,6 +222,18 @@ User reported a serious exploit/inconvenience: refreshing a drill route generate
 - Challenge/Astro boost state is still computed before session-cache resume where it affects rewards, so refresh should not quietly drop boost behavior.
 - Verification passed: `npx tsc --noEmit` and `npm run build:web`.
 
+## Latest Drill Refresh Progress Fix - June 16, 2026
+
+User later reported that refresh no longer created free new drill sets, but still reset answered questions and timers. Follow-up fix applied locally:
+
+- Added `getDrillSessionProgress` / `saveDrillSessionProgress` in `utils/storage.ts`, keyed by language, drill type, and route `sessionId`, with an 80-entry cap.
+- Listening refresh now restores current question index, selected/answered feedback state, play counts, streaks, XP, and selected answer.
+- Reading refresh now restores current passage/question, selected answer, feedback/complete phase, streaks, XP, and remaining timer; restored indices are clamped to the cached passage shape.
+- Speaking translation refresh now restores current prompt, phase, result, XP, transcript, saved hint state, heard-target state, and recording URI. Active `recording` / `evaluating` phases resume as transcript review to avoid duplicate recording or duplicate AI scoring.
+- AP conversation/texting refresh now restores turn index, countdown, draft/answers, recording URIs, conversation phase, review result, and save-after-review state.
+- `components/AnswerChoice.tsx` was simplified to use a normal `Pressable` inside an animated wrapper and removed web CSS transition props that could fight React Native animation and cause hover flicker/jiggle.
+- Verification passed: `npx tsc --noEmit` and `npm run build:web`. Fresh preview route checks returned HTTP 200 for `/`, `/ap/reading`, `/listening/session`, and `/speaking/translation`. Browser automation was unavailable in this session because the Browser runtime failed to start and Playwright was not installed in the moved workspace, so visual interaction QA still needs a manual/in-browser pass.
+
 ## Latest Reading Drill Fixes - June 16, 2026
 
 User reported three reading-drill failures: repeated Study Spot Advice prompt, wrong evidence highlight for "What does the writer recommend?", and incomplete furigana after a wrong answer. Fixes applied:

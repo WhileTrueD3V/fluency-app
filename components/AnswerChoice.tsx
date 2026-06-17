@@ -4,7 +4,6 @@ import { haptics } from '@/utils/haptics';
 import { Colors } from '@/constants/colors';
 
 type ChoiceState = 'idle' | 'selected-correct' | 'selected-wrong' | 'reveal-correct';
-const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 interface AnswerChoiceProps {
   label: string;
@@ -121,7 +120,7 @@ export function AnswerChoice({
 
   return (
     <Animated.View style={[styles.choiceFrame, { transform: [{ scale: scaleAnim }, { translateY: hoverTranslateY }] }]}>
-      <AnimatedPressable
+      <Pressable
         onPress={handlePress}
         disabled={disabled}
         onHoverIn={() => setHover(true)}
@@ -153,17 +152,13 @@ export function AnswerChoice({
           {letters[index]}
         </Text>
         <Text style={[styles.label, compact && styles.labelCompact, mobile && styles.labelMobile, { color: s.textColor }]}>{label}</Text>
-      </AnimatedPressable>
+      </Pressable>
     </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
-  choiceFrame: {
-    transitionProperty: 'transform',
-    transitionDuration: '140ms',
-    transitionTimingFunction: 'ease-out',
-  },
+  choiceFrame: {},
   choice: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -176,9 +171,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.04,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },
-    transitionProperty: 'background-color, border-color, box-shadow',
-    transitionDuration: '140ms',
-    transitionTimingFunction: 'ease-out',
   },
   choiceCompact: {
     gap: 11,
