@@ -38,6 +38,7 @@ import {
   refreshGeneratedPracticeCache,
   selectPracticeItems,
 } from '@/utils/practiceContentQueue';
+import { practiceRepeatKeys } from '@/utils/practiceRepeatKeys';
 import {
   getAppSettings,
   getDrillSessionContent,
@@ -174,6 +175,42 @@ function inferEvidenceKeyword(evidence: string) {
   return phrase ?? evidence.slice(0, Math.min(16, evidence.length));
 }
 
+function trimEvidencePhrase(text: string) {
+  return text.trim().replace(/^[、，,\s]+/, '').replace(/[。！？!?、，,\s]+$/, '');
+}
+
+function shortestDecisiveEvidencePhrase(
+  evidence: string,
+  question: ReadingPromptQuestion,
+  explicitKeyword?: string,
+) {
+  const source = `${question.question} ${question.choices[question.correctIndex] ?? ''}`;
+  const keyword = explicitKeyword?.trim();
+  if (keyword && evidence.includes(keyword) && keyword.length >= 5) return keyword;
+
+  const clauses = evidence
+    .split(/[、，,。！？!?]/)
+    .map(trimEvidencePhrase)
+    .filter((clause) => clause.length >= 3);
+
+  const wantsOrRequests = /want|wants|would like|request|ask|asks|recommend|exchange|replace|return|refund/i.test(source);
+  if (wantsOrRequests) {
+    const desireClause = clauses.find((clause) => /(できれば|交換|返品|返金|お願い|いただきたい|ほしい|したい|たい)/.test(clause));
+    if (desireClause) return desireClause;
+  }
+
+  if (keyword) {
+    const keywordClause = clauses.find((clause) => clause.includes(keyword));
+    if (keywordClause && keywordClause.length <= Math.max(18, keyword.length + 12)) return keywordClause;
+    if (evidence.includes(keyword)) return keyword;
+  }
+
+  const decisiveClause = clauses.find((clause) => /(ため|から|ので|ただし|なら|ほうがいい|できれば|必要|ください|できます|できません|中止|変更|割引|交換)/.test(clause));
+  if (decisiveClause && decisiveClause.length <= 28) return decisiveClause;
+
+  return trimEvidencePhrase(evidence);
+}
+
 function cueTermsForQuestion(question: ReadingPromptQuestion) {
   const correctChoice = question.choices[question.correctIndex] ?? "";
   const source = [question.question, correctChoice].join(" ");
@@ -197,11 +234,10 @@ function getReadingEvidenceHint(passage: ReadingPassageSet, question: ReadingPro
   const explicitKeyword = question.keyword?.trim();
 
   if (explicitEvidence) {
-    const highlightEvidence = explicitKeyword && passage.passage.includes(explicitKeyword)
-      ? explicitKeyword
-      : passage.passage.includes(explicitEvidence)
-        ? explicitEvidence
-        : sentences.find((sentence) => sentence.includes(explicitEvidence) || explicitEvidence.includes(sentence)) ?? explicitEvidence;
+    const matchedEvidence = passage.passage.includes(explicitEvidence)
+      ? explicitEvidence
+      : sentences.find((sentence) => sentence.includes(explicitEvidence) || explicitEvidence.includes(sentence)) ?? explicitEvidence;
+    const highlightEvidence = shortestDecisiveEvidencePhrase(matchedEvidence, question, explicitKeyword);
     return {
       evidence: highlightEvidence,
       keyword: explicitKeyword || inferEvidenceKeyword(explicitEvidence),
@@ -224,28 +260,14 @@ function getReadingEvidenceHint(passage: ReadingPassageSet, question: ReadingPro
   }
 
   return {
-    evidence: best.sentence,
+    evidence: shortestDecisiveEvidencePhrase(best.sentence, question, explicitKeyword),
     keyword: explicitKeyword || inferEvidenceKeyword(best.sentence),
     explanation: question.explanation?.trim() || "This line gives the detail needed to choose the correct answer.",
   };
 }
 
 function readingExposureIds(passages: ReadingPassageSet[]) {
-  return passages.flatMap((passage) => [
-    passage.id,
-    compactEvidenceText([passage.title, passage.context, passage.passage].join(" ")).slice(0, 180),
-    ...passage.questions.flatMap((question) => [
-      question.id,
-      `${passage.id}:${question.id}`,
-      compactEvidenceText([
-        passage.title,
-        question.question,
-        question.choices[question.correctIndex] ?? "",
-        question.evidence ?? "",
-        question.keyword ?? "",
-      ].join(" ")).slice(0, 180),
-    ]),
-  ].filter(Boolean));
+  return passages.flatMap(practiceRepeatKeys);
 }
 
 export default function APReadingSession() {
@@ -447,7 +469,7 @@ export default function APReadingSession() {
           totalXP: stats.totalXP,
           recentPromptIds: [
             ...recentPromptIds,
-            ...nextPassages.map((passage) => passage.id),
+            ...readingExposureIds(nextPassages),
           ],
           count: Math.max(3, passageCount),
           targetSkills: [

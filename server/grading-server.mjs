@@ -792,7 +792,14 @@ function noRepeatGuidance(payload) {
     ...(Array.isArray(profile.recentPromptIds) ? profile.recentPromptIds : []),
     ...(Array.isArray(profile.doNotRepeatIds) ? profile.doNotRepeatIds : []),
   ]) {
-    addSignal('recent prompt id', id);
+    const label = String(id).startsWith('fp:')
+      ? 'recent prompt fingerprint'
+      : String(id).startsWith('topic:') || String(id).startsWith('passage:')
+        ? 'recent topic/source fingerprint'
+        : String(id).startsWith('family:')
+          ? 'blocked recent task family'
+          : 'recent prompt id';
+    addSignal(label, id);
   }
 
   for (const summary of Array.isArray(profile.generatedPromptSummaries) ? profile.generatedPromptSummaries : []) {
@@ -817,7 +824,7 @@ function noRepeatGuidance(payload) {
   if (signals.length === 0) return [];
   return [
     'Hard novelty constraints:',
-    ...signals.slice(0, 16).map((signal) => `- ${signal}`),
+    ...signals.slice(0, 28).map((signal) => `- ${signal}`),
     'Never generate a topic family, source genre, answer logic, speech act, requested object, task frame, or surface scenario that is named or implied by those novelty constraints.',
     'A near-duplicate is still forbidden even if the wording, ids, character names, or setting details change. The learner should feel this is a new drill, not the same mistake wearing a new jacket.',
     'Use the same weak skill, but change the situation and communicative job. If recent work asked what to bring, do not ask what to bring again. If recent work asked about being late, do not use late-arrival/apology timing logic again. If recent work used a club-meeting-change notice, do not use another club or schedule-change reason notice.',
@@ -870,7 +877,8 @@ function contentGenerationPrompt(payload) {
       ? [
         'Return ReadingPassageSet objects with exactly: id, passage, translation, context, title, questions, difficulty, category.',
         'Each questions item must have id, question, choices, correctIndex, evidence, keyword, explanation.',
-        'For each reading question, evidence must be the shortest exact Japanese sentence or phrase from the passage that proves the correct answer.',
+        'For each reading question, evidence must be the shortest exact Japanese phrase from the passage that proves the correct answer. Prefer 3-12 Japanese words/phrases or one short clause, not a whole sentence, unless the full sentence is truly required.',
+        'For request/recommend/intent questions, evidence must isolate the request/intent clause itself, e.g. できれば交換していただきたいです, not the setup or reason before it.',
         'keyword must be the decisive Japanese cue word or phrase inside that evidence. explanation must briefly explain in English why that cue proves the answer.',
         'Each passage should have 2-4 questions, and choices must contain exactly 4 English answer choices.',
         'Harder levels should use longer passages, harder kanji, denser information, and less beginner-style wording or furigana-style support.',

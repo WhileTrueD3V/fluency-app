@@ -49,6 +49,7 @@ import {
   refreshGeneratedPracticeCache,
   selectPracticeItems,
 } from '@/utils/practiceContentQueue';
+import { practiceRepeatKeys } from '@/utils/practiceRepeatKeys';
 import {
   chooseStrongestChallengeBoost,
   getAstroChallengeBoostState,
@@ -258,7 +259,7 @@ export default function ListeningSession() {
       setReady(nextQuestions.length > 0);
       await saveDrillSessionContent(code, 'listening', sessionId, nextQuestions);
       if (nextQuestions.length > 0) {
-        void recordPromptExposure(code, 'listening', nextQuestions.map((question) => question.id));
+        void recordPromptExposure(code, 'listening', nextQuestions.flatMap(practiceRepeatKeys));
       }
       if (cachedQuestions.length < sessionLength) {
         void refreshGeneratedPracticeCache({
@@ -267,7 +268,7 @@ export default function ListeningSession() {
           totalXP: stats.totalXP,
           recentPromptIds: [
             ...recentPromptIds,
-            ...nextQuestions.map((question) => question.id),
+            ...nextQuestions.flatMap(practiceRepeatKeys),
           ],
           count: Math.max(6, sessionLength),
           targetSkills: [

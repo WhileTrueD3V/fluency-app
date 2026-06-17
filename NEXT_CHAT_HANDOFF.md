@@ -583,6 +583,44 @@ Verification after this pass:
 - `node --check server/grading-server.mjs` passed.
 - `npm run build:web` passed and exported `dist/_expo/static/js/web/entry-58cab59dbb83dc5873f7005e2d069ee4.js`.
 
+## Latest Repeat Suppression / Reading Evidence Tightening - June 17, 2026
+
+User reported two still-open quality issues:
+
+- Repeat prompts are still appearing across drill types.
+- Reading wrong-answer highlights can select too much text instead of the critical phrase.
+
+Fix applied locally:
+
+- Added `utils/practiceRepeatKeys.ts` as the shared repeat-memory helper for listening, speaking, reading, AP conversation, and AP texting.
+- Repeat history now stores more than raw IDs:
+  - `fp:` normalized full-content fingerprints.
+  - `topic:` normalized topic/source fingerprints.
+  - `passage:` reading passage fingerprints.
+  - `family:` deterministic topic-family blockers such as late/bring, club schedule change, train delay, cafe study, bag exchange, and cashless trend.
+  - Reading question-level signatures containing question text, correct answer, evidence, and keyword.
+- Japanese repeat matching now includes character n-grams, because Japanese scenarios often have no spaces and the older token matcher missed near-duplicates.
+- Listening, speaking, reading, conversation, and texting now record `practiceRepeatKeys(...)` on exposure instead of only prompt IDs.
+- `utils/storage.ts` increased recent prompt memory from `80` to `240`, because each prompt now records multiple repeat signatures.
+- `utils/practiceContentQueue.ts` now dedupes by shared repeat keys and no longer backfills with stale last-resort repeated generated items when fresh content is short.
+- `data/index.ts` no longer refills local fallback pools with stale items after the fresh local pool is exhausted.
+- `components/APPracticeSession.tsx` no longer falls back to `localSets[0]` when all AP texting/conversation sets are blocked as stale.
+- `server/grading-server.mjs` now labels `fp:`, `topic:`, `passage:`, and `family:` signals for the AI and includes more novelty signals in generation prompts.
+- Server reading-generation guidance now requires evidence to be the shortest exact Japanese phrase/clause, not a broad sentence. For intent/request questions it explicitly says to isolate the request clause, e.g. `できれば交換していただきたいです`.
+- `app/ap/reading.tsx` now splits evidence on Japanese sentence punctuation and commas before picking a highlight, so a broad evidence chain can still reduce to the decisive request/intent clause.
+- Local `ja-rd-07` exchange-request metadata now sets q1 evidence/keyword to `できれば交換していただきたいです`, q2 to `まだ一度しか使っていないので`, and q3 to `チャックがこわれてしまいました`.
+
+Important caveat:
+
+- This stops silent stale refill and catches many near-duplicate scenarios, but if the learner has exhausted all fresh local content and the AI endpoint is unavailable, a drill may have no fresh set ready instead of repeating. That is intentional until a better "generating fresh work" state is built.
+- Full furigana in reading feedback depends on `utils/furigana.ts` knowing the readings. It shows all known kanji readings in feedback mode, but generated/unknown kanji still need a real analyzer or an expanded reading dictionary later.
+
+Verification after this pass:
+
+- `npx tsc --noEmit` passed.
+- `node --check server/grading-server.mjs` passed.
+- `npm run build:web` passed and exported `dist/_expo/static/js/web/entry-d923205bb5c906b4f2d5013967504eee.js`.
+
 ## What Is Still Left
 
 The main remaining work is not the core personalization plumbing. It is:

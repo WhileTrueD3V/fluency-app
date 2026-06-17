@@ -237,7 +237,7 @@ const KEYS = {
   DRILL_SESSION_PROGRESS: '@fluent:drillSessionProgress',
 } as const;
 
-const RECENT_PROMPT_LIMIT = 80;
+const RECENT_PROMPT_LIMIT = 240;
 const ATTEMPT_MEMORY_LIMIT = 100;
 const WEAK_MEMORY_LIMIT = 80;
 const firstCompletionFeedbackListeners = new Set<() => void>();

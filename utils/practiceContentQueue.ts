@@ -25,6 +25,11 @@ import {
   type GeneratedPromptItem,
   type PromptHistoryType,
 } from '@/utils/storage';
+import {
+  hasPracticeRepeatOverlap,
+  practiceFingerprint,
+  practiceRepeatKeys,
+} from '@/utils/practiceRepeatKeys';
 
 type PracticeCache = {
   listening: Partial<Record<LanguageCode, ListeningQuestion[]>>;
@@ -96,117 +101,6 @@ const DEFAULT_TARGET_SKILLS: Record<AIPracticeMode, string[]> = {
   ],
 };
 
-function normalizePracticeText(value: string) {
-  return value
-    .toLowerCase()
-    .replace(/[。、，,.!?！？「」『』（）()【】\[\]{}"'`~・:：;；\s-]/g, '')
-    .slice(0, 260);
-}
-
-function practiceItemText(item: GeneratedPromptItem) {
-  if ('transcript' in item) {
-    return [
-      item.context,
-      item.category,
-      item.question,
-      item.transcript,
-      item.choices[item.correctIndex] ?? '',
-    ].join(' ');
-  }
-  if ('passage' in item) {
-    return [
-      item.title,
-      item.context,
-      item.category,
-      item.passage,
-      ...item.questions.flatMap((question) => [
-        question.question,
-        question.choices[question.correctIndex] ?? '',
-        ...question.choices,
-        question.evidence ?? '',
-        question.keyword ?? '',
-      ]),
-    ].join(' ');
-  }
-  if ('english' in item) {
-    return [
-      item.english,
-      item.hint,
-      ...item.acceptableAnswers.slice(0, 3),
-    ].join(' ');
-  }
-  return [
-    item.title,
-    item.situation,
-    ...item.prompts,
-    ...item.modelAnswers.slice(0, 2),
-  ].join(' ');
-}
-
-function practiceItemTopicText(item: GeneratedPromptItem) {
-  if ('transcript' in item) return [item.context, item.category, item.question].join(' ');
-  if ('passage' in item) return [
-    item.title,
-    item.context,
-    item.category,
-    ...item.questions.flatMap((question) => [
-      question.question,
-      question.choices[question.correctIndex] ?? '',
-      question.keyword ?? '',
-    ]),
-  ].join(' ');
-  if ('english' in item) return item.english;
-  return [item.title, item.situation, ...item.prompts.slice(0, 2)].join(' ');
-}
-
-function practiceFingerprint(item: GeneratedPromptItem) {
-  return normalizePracticeText(practiceItemText(item));
-}
-
-function practiceTopicFingerprint(item: GeneratedPromptItem) {
-  return normalizePracticeText(practiceItemTopicText(item)).slice(0, 150);
-}
-
-function topicTokens(value: string): string[] {
-  return Array.from(new Set(
-    value
-      .toLowerCase()
-      .split(/[^a-z0-9一-龯ぁ-んァ-ヶー]+/i)
-      .map((token) => token.trim())
-      .filter((token) => token.length >= 3),
-  ));
-}
-
-function isCloseTopicMatch(topic: string, blockedTopic: string) {
-  if (!topic || !blockedTopic) return false;
-  if (topic === blockedTopic || topic.includes(blockedTopic) || blockedTopic.includes(topic)) return true;
-
-  const topicSet = new Set(topicTokens(topic));
-  const blockedTokens = topicTokens(blockedTopic);
-  if (topicSet.size === 0 || blockedTokens.length === 0) return false;
-
-  const overlap = blockedTokens.filter((token) => topicSet.has(token)).length;
-  return overlap >= 3 && overlap / Math.min(topicSet.size, blockedTokens.length) >= 0.6;
-}
-
-function hasBlockedTopic(topic: string, blockedTopics: Set<string>) {
-  for (const blockedTopic of blockedTopics) {
-    if (isCloseTopicMatch(topic, blockedTopic)) return true;
-  }
-  return false;
-}
-
-function hasBlockedTopicTokens(item: GeneratedPromptItem, blockedTopicTokenSets: string[][]) {
-  const tokens = new Set(topicTokens(practiceItemTopicText(item)));
-  if (tokens.size === 0) return false;
-
-  return blockedTopicTokenSets.some((blockedTokens) => {
-    if (blockedTokens.length === 0) return false;
-    const overlap = blockedTokens.filter((token) => tokens.has(token)).length;
-    return overlap >= 3 && overlap / Math.min(tokens.size, blockedTokens.length) >= 0.6;
-  });
-}
-
 export function uniquePracticeItems<T extends { id: string }>(items: T[]): T[] {
   const seen = new Set<string>();
   return items.filter((item) => {
@@ -214,9 +108,13 @@ export function uniquePracticeItems<T extends { id: string }>(items: T[]): T[] {
     const fingerprint = 'languageCode' in generatedItem || 'difficulty' in generatedItem
       ? practiceFingerprint(generatedItem as GeneratedPromptItem)
       : '';
+    const repeatKeys = 'languageCode' in generatedItem || 'difficulty' in generatedItem
+      ? practiceRepeatKeys(generatedItem as GeneratedPromptItem)
+      : [item.id, fingerprint].filter(Boolean);
     const key = fingerprint ? `${item.id}:${fingerprint}` : item.id;
-    if (seen.has(item.id) || seen.has(key) || (fingerprint && seen.has(fingerprint))) return false;
+    if (seen.has(item.id) || seen.has(key) || repeatKeys.some((repeatKey) => seen.has(repeatKey))) return false;
     seen.add(item.id);
+    repeatKeys.forEach((repeatKey) => seen.add(repeatKey));
     if (fingerprint) {
       seen.add(key);
       seen.add(fingerprint);
@@ -233,17 +131,12 @@ export function filterFreshPracticeItems<T extends GeneratedPromptItem>(
   const recentIdSet = new Set(recentPromptIds);
   const recentlySeenItems = items.filter((item) => recentIdSet.has(item.id));
   const blockedItems = uniquePracticeItems([...recentlySeenItems, ...recentItems]);
-  const blockedFingerprints = new Set(blockedItems.map(practiceFingerprint).filter(Boolean));
-  const blockedTopics = new Set(blockedItems.map(practiceTopicFingerprint).filter(Boolean));
-  const blockedTopicTokenSets = blockedItems.map((item) => topicTokens(practiceItemTopicText(item)));
+  const blockedKeys = new Set([
+    ...recentPromptIds,
+    ...blockedItems.flatMap(practiceRepeatKeys),
+  ]);
   return uniquePracticeItems(items).filter((item) => {
-    if (recentIdSet.has(item.id)) return false;
-    const fingerprint = practiceFingerprint(item);
-    if (fingerprint && blockedFingerprints.has(fingerprint)) return false;
-    const topic = practiceTopicFingerprint(item);
-    if (topic && hasBlockedTopic(topic, blockedTopics)) return false;
-    if (hasBlockedTopicTokens(item, blockedTopicTokenSets)) return false;
-    return true;
+    return !hasPracticeRepeatOverlap(item, blockedKeys);
   });
 }
 
@@ -257,13 +150,7 @@ export function selectPracticeItems<T extends GeneratedPromptItem>(
   const fresh = filterFreshPracticeItems(deduped, recentPromptIds, recentItems);
   if (fresh.length >= count) return fresh.slice(0, count);
 
-  const selectedIds = new Set(fresh.map((item) => item.id));
-  const recentRank = new Map(recentPromptIds.map((id, index) => [id, index]));
-  const lastResort = deduped
-    .filter((item) => !selectedIds.has(item.id))
-    .sort((a, b) => (recentRank.get(b.id) ?? 9999) - (recentRank.get(a.id) ?? 9999));
-
-  return uniquePracticeItems([...fresh, ...lastResort]).slice(0, count);
+  return fresh.slice(0, count);
 }
 
 export function getGeneratedPracticeMemory<T extends GeneratedPromptItem>(

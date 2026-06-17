@@ -3,6 +3,7 @@ import { spanishSpeakingPrompts, spanishListeningQuestions } from './spanish';
 import type { SpeakingPrompt, ListeningQuestion, ReadingPassageSet } from './types';
 import type { LanguageCode } from '@/constants/languages';
 import { difficultyRank, getPlayerLevel } from '@/utils/progression';
+import { hasPracticeRepeatOverlap, practiceRepeatKeys, type PracticeRepeatItem } from '@/utils/practiceRepeatKeys';
 
 export type { SpeakingPrompt, ListeningQuestion, ReadingPassageSet, PracticeItem } from './types';
 
@@ -29,32 +30,11 @@ function byDifficulty<T extends { difficulty: 'beginner' | 'intermediate' | 'adv
 }
 
 
-function normalizeRepeatKey(value: string) {
-  return value
-    .toLowerCase()
-    .replace(/[\s。、，,.!?！？;；:：「」『』()（）"'’“”・-]/g, '')
-    .slice(0, 180);
+function isFreshLocalItem<T extends PracticeRepeatItem>(item: T, excluded: Set<string>) {
+  return !hasPracticeRepeatOverlap(item, excluded);
 }
 
-function readingRepeatKeys(set: ReadingPassageSet) {
-  return [
-    set.id,
-    normalizeRepeatKey([set.title, set.context, set.passage].join(' ')),
-    ...set.questions.flatMap((question) => [
-      question.id,
-      set.id + ':' + question.id,
-      normalizeRepeatKey([
-        set.title,
-        question.question,
-        question.choices[question.correctIndex] ?? '',
-        question.evidence ?? '',
-        question.keyword ?? '',
-      ].join(' ')),
-    ]),
-  ].filter(Boolean);
-}
-
-function progressiveSubset<T extends { id: string; difficulty: 'beginner' | 'intermediate' | 'advanced' }>(
+function progressiveSubset<T extends PracticeRepeatItem & { id: string; difficulty: 'beginner' | 'intermediate' | 'advanced' }>(
   items: T[],
   count: number,
   totalXP: number,
@@ -63,26 +43,18 @@ function progressiveSubset<T extends { id: string; difficulty: 'beginner' | 'int
   const level = getPlayerLevel(totalXP);
   const excluded = new Set(Array.isArray(excludedIds) ? excludedIds : []);
   const allowed = (item: T) => level.allowedDifficulties.includes(item.difficulty);
-  const fresh = (item: T) => !excluded.has(item.id);
-  const stale = (item: T) => excluded.has(item.id);
+  const fresh = (item: T) => isFreshLocalItem(item, excluded);
   const easierFirst = (a: T, b: T) => difficultyRank(a.difficulty) - difficultyRank(b.difficulty);
 
   const freshPreferred = items.filter((item) => allowed(item) && fresh(item));
   const freshFallback = items.filter((item) => !allowed(item) && fresh(item)).sort(easierFirst);
-  const stalePreferred = items.filter((item) => allowed(item) && stale(item));
-  const staleFallback = items.filter((item) => !allowed(item) && stale(item)).sort(easierFirst);
-
   const shuffledFreshPreferred = [...freshPreferred]
     .sort(() => Math.random() - 0.5)
     .sort(byDifficulty);
   const shuffledFreshFallback = [...freshFallback].sort(() => Math.random() - 0.5);
-  const shuffledStalePreferred = [...stalePreferred].sort(() => Math.random() - 0.5);
-  const shuffledStaleFallback = [...staleFallback].sort(() => Math.random() - 0.5);
   const pool = [
     ...shuffledFreshPreferred,
     ...shuffledFreshFallback,
-    ...shuffledStalePreferred,
-    ...shuffledStaleFallback,
   ];
   return pool.slice(0, Math.min(count, pool.length));
 }
@@ -149,7 +121,7 @@ export function getRandomReadingSets(
 ): ReadingPassageSet[] {
   const all = getReadingSets(langCode);
   const excluded = new Set(excludedIds);
-  const fresh = all.filter((set) => !readingRepeatKeys(set).some((key) => excluded.has(key)));
-  const pool = fresh.length > 0 ? fresh : all.filter((set) => !excluded.has(set.id));
+  const fresh = all.filter((set) => isFreshLocalItem(set, excluded));
+  const pool = fresh.length > 0 ? fresh : all.filter((set) => !practiceRepeatKeys(set).some((key) => excluded.has(key)));
   return progressiveSubset(pool.length > 0 ? pool : all, count, totalXP, excludedIds);
 }

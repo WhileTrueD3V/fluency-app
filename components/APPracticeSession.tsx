@@ -48,6 +48,7 @@ import {
   refreshGeneratedPracticeCache,
   selectPracticeItems,
 } from '@/utils/practiceContentQueue';
+import { practiceRepeatKeys } from '@/utils/practiceRepeatKeys';
 import { parseTargetSkillsParam } from '@/utils/targetSkills';
 import {
   applyChallengeBoostXP,
@@ -320,12 +321,18 @@ export function APPracticeSession({ mode }: { mode: APPracticeMode }) {
       const nextSet = selectPracticeItems([
         ...cachedSets,
         ...localSets,
-      ], 1, recentPromptIds, cachedSets)[0] ?? localSets[0] ?? getAPPracticeSetById(mode, 'ja');
+      ], 1, recentPromptIds, cachedSets)[0] ?? null;
+      if (!nextSet) {
+        setHydratedProgress(null);
+        setPracticeSet(null);
+        setIsLoadingSet(false);
+        return;
+      }
       setHydratedProgress(null);
       setPracticeSet(nextSet);
       await saveDrillSessionContent(code, mode, sessionId, [nextSet]);
       setIsLoadingSet(false);
-      void recordPromptExposure(code, mode, [nextSet.id]);
+      void recordPromptExposure(code, mode, practiceRepeatKeys(nextSet));
       if (cachedSets.length === 0) {
         void refreshGeneratedPracticeCache({
           mode,
@@ -333,7 +340,7 @@ export function APPracticeSession({ mode }: { mode: APPracticeMode }) {
           totalXP: stats.totalXP,
           recentPromptIds: [
             ...recentPromptIds,
-            nextSet.id,
+            ...practiceRepeatKeys(nextSet),
           ],
           count: 3,
           targetSkills: [

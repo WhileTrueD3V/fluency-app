@@ -46,6 +46,7 @@ import {
   selectPracticeItems,
   uniquePracticeItems,
 } from '@/utils/practiceContentQueue';
+import { practiceRepeatKeys } from '@/utils/practiceRepeatKeys';
 import { parseTargetSkillsParam } from '@/utils/targetSkills';
 import {
   applyChallengeBoostXP,
@@ -403,7 +404,7 @@ export default function TranslationScreen() {
       await saveDrillSessionContent(code, 'speaking', sessionId, nextPrompts);
       setCurrentIdx(0);
       if (nextPrompts.length > 0) {
-        void recordPromptExposure(code, 'speaking', nextPrompts.map((prompt) => prompt.id));
+        void recordPromptExposure(code, 'speaking', nextPrompts.flatMap(practiceRepeatKeys));
       }
       if (cachedPrompts.length < 8) {
         void refreshGeneratedPracticeCache({
@@ -412,7 +413,7 @@ export default function TranslationScreen() {
           totalXP: stats.totalXP,
           recentPromptIds: [
             ...recentPromptIds,
-            ...nextPrompts.map((prompt) => prompt.id),
+            ...nextPrompts.flatMap(practiceRepeatKeys),
           ],
           count: 8,
           targetSkills: [
