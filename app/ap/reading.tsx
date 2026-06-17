@@ -197,10 +197,13 @@ function getReadingEvidenceHint(passage: ReadingPassageSet, question: ReadingPro
   const explicitKeyword = question.keyword?.trim();
 
   if (explicitEvidence) {
-    return {
-      evidence: passage.passage.includes(explicitEvidence)
+    const highlightEvidence = explicitKeyword && passage.passage.includes(explicitKeyword)
+      ? explicitKeyword
+      : passage.passage.includes(explicitEvidence)
         ? explicitEvidence
-        : sentences.find((sentence) => sentence.includes(explicitEvidence) || explicitEvidence.includes(sentence)) ?? explicitEvidence,
+        : sentences.find((sentence) => sentence.includes(explicitEvidence) || explicitEvidence.includes(sentence)) ?? explicitEvidence;
+    return {
+      evidence: highlightEvidence,
       keyword: explicitKeyword || inferEvidenceKeyword(explicitEvidence),
       explanation: question.explanation?.trim() || "This line gives the detail needed to choose the correct answer.",
     };
@@ -482,6 +485,7 @@ export default function APReadingSession() {
   const isLastQuestionForPassage = currentPassage
     ? currentQuestionIndex + 1 >= currentPassage.questions.length
     : false;
+  const shouldShowPassageMeaning = phase === 'feedback' && isLastQuestionForPassage;
   const passageSeconds = currentPassage
     ? Math.max(
       minimumSecondsForDifficulty(currentPassage.difficulty),
@@ -929,7 +933,7 @@ export default function APReadingSession() {
                 </View>
               )}
 
-              {phase === 'feedback' && isLastQuestionForPassage && (
+              {shouldShowPassageMeaning && (
                 <View style={styles.translationReveal}>
                   <Text style={styles.translationLabel}>Passage meaning:</Text>
                   <Text style={styles.translationText}>{currentPassage.translation}</Text>

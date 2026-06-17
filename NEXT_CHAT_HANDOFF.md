@@ -222,6 +222,15 @@ User reported a serious exploit/inconvenience: refreshing a drill route generate
 - Challenge/Astro boost state is still computed before session-cache resume where it affects rewards, so refresh should not quietly drop boost behavior.
 - Verification passed: `npx tsc --noEmit` and `npm run build:web`.
 
+## Latest Reading Evidence Polish - June 17, 2026
+
+User reported that after a wrong reading answer, the main passage was not highlighting the specific answer spot and the passage meaning appeared too early. Fix applied:
+
+- `app/ap/reading.tsx` now prefers a question's shorter `keyword` phrase for the passage highlight when that phrase appears in the passage, instead of highlighting the full evidence sentence.
+- The passage meaning reveal is now controlled by `shouldShowPassageMeaning` and only appears during feedback on the final question for that passage.
+- `data/japanese.ts` now adds explicit evidence/keyword metadata for the local `After-school message` questions, so wrong answers highlight `宿題をしてから` / `六時ごろ` instead of relying on heuristic guessing.
+- Verification passed: `npx tsc --noEmit` and `npm run build:web`. Preview reading route returned HTTP 200 at `http://127.0.0.1:8083/ap/reading`.
+
 ## Latest Drill Refresh Progress Fix - June 16, 2026
 
 User later reported that refresh no longer created free new drill sets, but still reset answered questions and timers. Follow-up fix applied locally:
