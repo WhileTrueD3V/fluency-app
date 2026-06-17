@@ -41,6 +41,7 @@ import {
 } from '@/utils/practiceContentQueue';
 import { practiceRepeatKeys } from '@/utils/practiceRepeatKeys';
 import {
+  CREDIT_COSTS,
   getAppSettings,
   getDrillSessionContent,
   getDrillSessionProgress,
@@ -53,6 +54,7 @@ import {
   hasCompletedRewardKey,
   recordAttemptMemory,
   recordPromptExposure,
+  refundPracticeSessionStart,
   saveDrillSessionContent,
   saveDrillSessionProgress,
   recordReadingSession,
@@ -310,6 +312,7 @@ export default function APReadingSession() {
   const xpScale = useRef(new Animated.Value(0.82)).current;
   const completedSessionRef = useRef<string | null>(null);
   const hydratedTimerRef = useRef(false);
+  const refundAttemptedRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -527,12 +530,19 @@ export default function APReadingSession() {
     : Math.min(430, Math.max(280, height * 0.36));
   const readingTextScale = readingTextScaleFor(readingTextSize);
   const activeSessionId = typeof params.sessionId === 'string' ? params.sessionId : null;
+  const recoveryVisible = ready && passages.length === 0;
   const rewardKey = String(
     params.rewardKey
     ?? params.sessionId
     ?? params.promptId
     ?? (params.mockId ? `${params.mockId}:reading` : passages.map((passage) => passage.id).join('|')),
   );
+
+  useEffect(() => {
+    if (!recoveryVisible || !activeSessionId || refundAttemptedRef.current) return;
+    refundAttemptedRef.current = true;
+    void refundPracticeSessionStart(activeSessionId, CREDIT_COSTS.drill);
+  }, [activeSessionId, recoveryVisible]);
 
   useEffect(() => {
     let cancelled = false;

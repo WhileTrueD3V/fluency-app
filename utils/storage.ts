@@ -229,6 +229,7 @@ const KEYS = {
   SETTINGS: '@fluent:settings',
   LEGACY_DAILY_USAGE: '@fluent:dailyUsage',
   CREDIT_USAGE: '@fluent:creditUsage',
+  CREDIT_CHARGES: '@fluent:creditCharges',
   ATTEMPT_MEMORY: '@fluent:attemptMemory',
   WEAK_MEMORY: '@fluent:weakMemory',
   FIRST_COMPLETION_FEEDBACK: '@fluent:firstCompletionFeedback',
@@ -603,6 +604,73 @@ export async function spendCredits(cost = CREDIT_COSTS.drill): Promise<CreditUsa
   return next;
 }
 
+type CreditChargeLedger = Record<string, {
+  id: string;
+  cycleKey: string;
+  cost: number;
+  chargedAt: number;
+  refundedAt?: number;
+}>;
+
+async function getCreditChargeLedger(): Promise<CreditChargeLedger> {
+  try {
+    const raw = await AsyncStorage.getItem(KEYS.CREDIT_CHARGES);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+async function saveCreditChargeLedger(ledger: CreditChargeLedger): Promise<void> {
+  const compact = Object.fromEntries(
+    Object.entries(ledger)
+      .sort(([, a], [, b]) => b.chargedAt - a.chargedAt)
+      .slice(0, 160),
+  );
+  await AsyncStorage.setItem(KEYS.CREDIT_CHARGES, JSON.stringify(compact));
+}
+
+async function recordCreditCharge(chargeId: string | null | undefined, usage: CreditUsage, cost: number): Promise<void> {
+  if (!chargeId || cost <= 0) return;
+  try {
+    const ledger = await getCreditChargeLedger();
+    ledger[chargeId] = {
+      id: chargeId,
+      cycleKey: usage.cycleKey,
+      cost,
+      chargedAt: Date.now(),
+    };
+    await saveCreditChargeLedger(ledger);
+  } catch {
+    // Credit charging already succeeded. The ledger only enables safe refunds.
+  }
+}
+
+export async function refundPracticeSessionStart(
+  chargeId: string | null | undefined,
+  fallbackCost = CREDIT_COSTS.drill,
+): Promise<CreditUsage | null> {
+  if (!chargeId) return null;
+  try {
+    const ledger = await getCreditChargeLedger();
+    const charge = ledger[chargeId];
+    const usage = await getCreditUsage();
+    if (!charge || charge.refundedAt || charge.cycleKey !== usage.cycleKey) return null;
+    const refundAmount = Math.max(0, Math.min(charge.cost || fallbackCost, usage.creditsSpent));
+    const next = {
+      ...usage,
+      sessionsStarted: Math.max(0, usage.sessionsStarted - 1),
+      creditsSpent: Math.max(0, usage.creditsSpent - refundAmount),
+    };
+    ledger[chargeId] = { ...charge, refundedAt: Date.now() };
+    await AsyncStorage.setItem(KEYS.CREDIT_USAGE, JSON.stringify(next));
+    await saveCreditChargeLedger(ledger);
+    return next;
+  } catch {
+    return null;
+  }
+}
+
 export async function canStartPracticeSession(cost = CREDIT_COSTS.drill): Promise<{
   allowed: boolean;
   usage: CreditUsage;
@@ -614,8 +682,13 @@ export async function canStartPracticeSession(cost = CREDIT_COSTS.drill): Promis
   return canSpendCredits(cost);
 }
 
-export async function recordPracticeSessionStart(cost = CREDIT_COSTS.drill): Promise<CreditUsage> {
-  return spendCredits(cost);
+export async function recordPracticeSessionStart(
+  cost = CREDIT_COSTS.drill,
+  chargeId?: string | null,
+): Promise<CreditUsage> {
+  const usage = await spendCredits(cost);
+  await recordCreditCharge(chargeId, usage, cost);
+  return usage;
 }
 
 // ---------------------------------------------------------------------------

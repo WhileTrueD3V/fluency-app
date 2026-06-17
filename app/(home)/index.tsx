@@ -2278,6 +2278,7 @@ export default function HomeScreen() {
     usage: CreditUsage;
     plan: SubscriptionPlan;
     cost: number;
+    chargeId?: string;
     title: string;
     subtitle: string;
     navigate: () => void;
@@ -2396,7 +2397,7 @@ export default function HomeScreen() {
 
   const startPracticeSession = async (
     navigate: () => void,
-    options: { cost?: number; title: string; subtitle: string },
+    options: { cost?: number; chargeId?: string; title: string; subtitle: string },
   ) => {
     const cost = options.cost ?? CREDIT_COSTS.drill;
     const access = await canStartPracticeSession(cost);
@@ -2404,6 +2405,7 @@ export default function HomeScreen() {
       usage: access.usage,
       plan: access.plan,
       cost,
+      chargeId: options.chargeId,
       title: options.title,
       subtitle: options.subtitle,
       navigate,
@@ -2418,7 +2420,7 @@ export default function HomeScreen() {
       return;
     }
     const navigate = creditNotice.navigate;
-    await recordPracticeSessionStart(creditNotice.cost);
+    await recordPracticeSessionStart(creditNotice.cost, creditNotice.chargeId);
     setCreditNotice(null);
     await loadUsage();
     haptics.impact('medium');
@@ -2432,10 +2434,12 @@ export default function HomeScreen() {
   };
 
   const startListeningSet = (targetSkills: string[] = [], rewardKey?: string) => {
+    const sessionId = `${Date.now()}`;
     startPracticeSession(() => router.push({
       pathname: '/listening/session',
-      params: { sessionId: `${Date.now()}`, languageCode: langCode, ...(rewardKey ? { rewardKey } : {}), ...targetSkillRouteParams(targetSkills) },
+      params: { sessionId, languageCode: langCode, ...(rewardKey ? { rewardKey } : {}), ...targetSkillRouteParams(targetSkills) },
     }), {
+      chargeId: sessionId,
       title: 'Listening accuracy repair',
       subtitle: 'Generated audio prompts focused on exact-detail capture and AP task completion.',
     });
@@ -2447,40 +2451,48 @@ export default function HomeScreen() {
   };
 
   const startSpeakingDrill = (targetSkills: string[] = [], rewardKey?: string) => {
+    const sessionId = `${Date.now()}`;
     startPracticeSession(() => router.push({
       pathname: '/speaking/translation',
-      params: { sessionId: `${Date.now()}`, languageCode: langCode, ...(rewardKey ? { rewardKey } : {}), ...targetSkillRouteParams(targetSkills) },
+      params: { sessionId, languageCode: langCode, ...(rewardKey ? { rewardKey } : {}), ...targetSkillRouteParams(targetSkills) },
     }), {
+      chargeId: sessionId,
       title: 'Timed speaking control',
       subtitle: 'A generated spoken drill that targets delivery, pace, and complete responses.',
     });
   };
 
   const startReadingSet = (targetSkills: string[] = [], rewardKey?: string) => {
+    const sessionId = `${Date.now()}`;
     startPracticeSession(() => router.push({
       pathname: '/ap/reading',
-      params: { sessionId: `${Date.now()}`, languageCode: langCode, ...(rewardKey ? { rewardKey } : {}), ...targetSkillRouteParams(targetSkills) },
+      params: { sessionId, languageCode: langCode, ...(rewardKey ? { rewardKey } : {}), ...targetSkillRouteParams(targetSkills) },
     }), {
+      chargeId: sessionId,
       title: 'Evidence finder',
       subtitle: 'A short AP-style passage generated around inference and detail traps.',
     });
   };
 
   const startConversationSet = (targetSkills: string[] = [], rewardKey?: string) => {
+    const sessionId = `${Date.now()}`;
     startPracticeSession(() => router.push({
       pathname: '/ap/conversation',
-      params: { sessionId: `${Date.now()}`, languageCode: langCode, ...(rewardKey ? { rewardKey } : {}), ...targetSkillRouteParams(targetSkills) },
+      params: { sessionId, languageCode: langCode, ...(rewardKey ? { rewardKey } : {}), ...targetSkillRouteParams(targetSkills) },
     }), {
+      chargeId: sessionId,
       title: 'Simulated conversation repair',
       subtitle: 'Four 20-second turns scored for delivery, task completion, and register.',
     });
   };
 
   const startTextingSet = (targetSkills: string[] = [], rewardKey?: string) => {
+    const sessionId = `${Date.now()}`;
     startPracticeSession(() => router.push({
       pathname: '/ap/texting',
-      params: { sessionId: `${Date.now()}`, languageCode: langCode, ...(rewardKey ? { rewardKey } : {}), ...targetSkillRouteParams(targetSkills) },
+      params: { sessionId, languageCode: langCode, ...(rewardKey ? { rewardKey } : {}), ...targetSkillRouteParams(targetSkills) },
     }), {
+      chargeId: sessionId,
       title: 'Text-chat register repair',
       subtitle: 'Timed written replies focused on language use, completion, and natural AP tone.',
     });

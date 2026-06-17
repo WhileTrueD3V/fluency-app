@@ -21,6 +21,7 @@ import { Colors } from '@/constants/colors';
 import { DrillAccents, tint } from '@/constants/drillAccents';
 import { getLanguage, type LanguageCode } from '@/constants/languages';
 import {
+  CREDIT_COSTS,
   getPrefs,
   getRecentPromptIds,
   getDrillSessionContent,
@@ -33,6 +34,7 @@ import {
   recordAttemptMemory,
   recordAPPracticeSession,
   recordPromptExposure,
+  refundPracticeSessionStart,
   saveDrillSessionContent,
   saveDrillSessionProgress,
   removeSavedItem,
@@ -205,6 +207,7 @@ export function APPracticeSession({ mode }: { mode: APPracticeMode }) {
   const promptPlaybackRef = useRef(0);
   const saveAfterReviewRef = useRef(saveAfterReview);
   const recordingUrisRef = useRef(recordingUris);
+  const refundAttemptedRef = useRef(false);
 
   const language = getLanguage(langCode);
   const set = practiceSet;
@@ -405,6 +408,13 @@ export function APPracticeSession({ mode }: { mode: APPracticeMode }) {
   }, [hydratedProgress, mode, practiceSet, reset, resetRecording]);
 
   const activeSessionId = typeof params.sessionId === 'string' ? params.sessionId : null;
+  const recoveryVisible = !isLoadingSet && !practiceSet;
+
+  useEffect(() => {
+    if (!recoveryVisible || !activeSessionId || refundAttemptedRef.current) return;
+    refundAttemptedRef.current = true;
+    void refundPracticeSessionStart(activeSessionId, CREDIT_COSTS.drill);
+  }, [activeSessionId, recoveryVisible]);
 
   useEffect(() => {
     if (!activeSessionId || !practiceSet) return;

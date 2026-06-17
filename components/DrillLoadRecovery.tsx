@@ -4,7 +4,7 @@ import { Colors } from '@/constants/colors';
 
 export function DrillLoadRecovery({
   title = 'This drill could not open cleanly.',
-  message = 'Kibbo stopped waiting instead of spinning forever. Go back and try again; saved sessions resume without rebuilding.',
+  message = 'Kibbo stopped waiting instead of spinning forever. If this was a paid start, that credit is returned automatically.',
   actionLabel = 'Back to plan',
   onAction,
 }: {

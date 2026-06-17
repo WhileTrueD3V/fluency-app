@@ -18,6 +18,7 @@ import { haptics } from '@/utils/haptics';
 import { Colors } from '@/constants/colors';
 import { DrillAccents, tint } from '@/constants/drillAccents';
 import {
+  CREDIT_COSTS,
   getPrefs,
   getRecentPromptIds,
   getDrillSessionContent,
@@ -28,6 +29,7 @@ import {
   hasCompletedRewardKey,
   isItemSaved,
   recordPromptExposure,
+  refundPracticeSessionStart,
   saveDrillSessionContent,
   saveDrillSessionProgress,
 } from '@/utils/storage';
@@ -303,6 +305,7 @@ export default function TranslationScreen() {
   const promptLoadRunRef = useRef(0);
   const userPlaybackRef = useRef<Audio.Sound | null>(null);
   const webUserPlaybackRef = useRef<HTMLAudioElement | null>(null);
+  const refundAttemptedRef = useRef(false);
   const [isUserRecordingPlaying, setIsUserRecordingPlaying] = useState(false);
 
   useEffect(() => {
@@ -445,6 +448,13 @@ export default function TranslationScreen() {
   const activeSessionId = typeof params.sessionId === 'string' ? params.sessionId : null;
   const currentPrompt = prompts[currentIdx] ?? null;
   const targetSentence = currentPrompt?.acceptableAnswers[0] ?? '';
+  const recoveryVisible = !isPromptLoading && !currentPrompt;
+
+  useEffect(() => {
+    if (!recoveryVisible || !activeSessionId || refundAttemptedRef.current) return;
+    refundAttemptedRef.current = true;
+    void refundPracticeSessionStart(activeSessionId, CREDIT_COSTS.drill);
+  }, [activeSessionId, recoveryVisible]);
 
   const { recognitionState, transcript, confidence, deliveryMetrics, error, startListening, stopListening, reset, requestPermission } =
     useSpeechRecognition(language.sttLocale);

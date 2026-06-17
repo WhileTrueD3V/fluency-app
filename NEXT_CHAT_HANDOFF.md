@@ -231,6 +231,34 @@ User reported that after a wrong reading answer, the main passage was not highli
 - `data/japanese.ts` now adds explicit evidence/keyword metadata for the local `After-school message` questions, so wrong answers highlight `宿題をしてから` / `六時ごろ` instead of relying on heuristic guessing.
 - Verification passed: `npx tsc --noEmit` and `npm run build:web`. Preview reading route returned HTTP 200 at `http://127.0.0.1:8083/ap/reading`.
 
+## Latest Drill Timeout / Failed-Start Refund Fix - June 17, 2026
+
+User reported repeatedly seeing the `Fresh set stalled / This drill could not open cleanly` recovery screen, including after the first-run warmup notice, and explicitly asked that failed opens not use credits.
+
+Fix applied:
+
+- `utils/aiContent.ts` now waits up to `40000ms` for generated drill content instead of `6000ms`, matching the user expectation that first builds can take roughly 30-60 seconds but should not spin for many minutes.
+- `utils/storage.ts` now keeps a compact credit-charge ledger keyed by the drill `sessionId`/charge id.
+- Home and Mini Mock paid launchers now pass the same charge id to both `recordPracticeSessionStart(...)` and the drill route `sessionId`.
+- `refundPracticeSessionStart(...)` safely reverses a charged drill start only if:
+  - the charge id exists in the ledger,
+  - it has not already been refunded,
+  - it belongs to the current credit cycle.
+- Failed-start refunds subtract both `creditsSpent` and the failed `sessionsStarted` count. Hand-typed URLs or random route refreshes cannot mint credits because no ledger charge exists for them.
+- Listening, Reading, Speaking, Conversation, and Texting routes now call the refund once when they show the recovery screen because no content could be loaded.
+- `DrillLoadRecovery` copy now says that a paid-start credit is returned automatically.
+- `DrillLoadingState` copy now says first builds can take a short warmup and that Kibbo will stop safely and return the credit if fresh work stalls.
+
+Validation:
+
+- `node --check server/grading-server.mjs` passed.
+- `npx tsc --noEmit` passed.
+- `npm run build:web` passed.
+- `npm run validate:launch` passed with the existing bundle-id reminder.
+- `npm run ai:usage` stayed unchanged at 48 calls / about `4.2491` cents lifetime, so this fix did not spend paid AI.
+- Local preview was restarted at `http://127.0.0.1:8083`.
+- Browser smoke on `http://127.0.0.1:8083/listening/session?languageCode=ja&sessionId=smoke-...` showed the recovery copy cleanly when no local AI server was available. The static preview console still showed the known React Native Web `useNativeDriver` warning plus minified hydration warnings on direct drill-route load; the recovery state rendered and was usable.
+
 ## Latest Drill Refresh Progress Fix - June 16, 2026
 
 User later reported that refresh no longer created free new drill sets, but still reset answered questions and timers. Follow-up fix applied locally:

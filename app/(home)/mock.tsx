@@ -481,12 +481,13 @@ export default function MockScreen() {
     const current = mock ?? await startMockProgress();
     setMock(current);
     const step = creditNotice.step;
-    await recordPracticeSessionStart(CREDIT_COSTS.drill);
+    const sessionId = `${current.id}:${step.section}`;
+    await recordPracticeSessionStart(CREDIT_COSTS.drill, sessionId);
     setCreditNotice(null);
     const targetSkills = encodeTargetSkills(getMockTierTargetSkills(challengeTierIndex, step.section));
     router.push({
       pathname: step.route,
-      params: { ...step.params, sessionId: `${current.id}:${step.section}`, mockId: current.id, ...(targetSkills ? { targetSkills } : {}) },
+      params: { ...step.params, sessionId, mockId: current.id, ...(targetSkills ? { targetSkills } : {}) },
     });
   };
 

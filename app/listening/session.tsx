@@ -16,6 +16,7 @@ import { haptics } from '@/utils/haptics';
 import { Colors } from '@/constants/colors';
 import { DrillAccents } from '@/constants/drillAccents';
 import {
+  CREDIT_COSTS,
   getPrefs,
   getDrillSessionContent,
   getDrillSessionProgress,
@@ -28,6 +29,7 @@ import {
   recordAttemptMemory,
   recordListeningSession,
   recordPromptExposure,
+  refundPracticeSessionStart,
   saveDrillSessionContent,
   saveDrillSessionProgress,
   removeSavedItem,
@@ -157,6 +159,7 @@ export default function ListeningSession() {
   const xpTranslateY = React.useRef(new Animated.Value(12)).current;
   const xpScale = React.useRef(new Animated.Value(0.82)).current;
   const completedSessionRef = React.useRef<string | null>(null);
+  const refundAttemptedRef = React.useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -311,6 +314,13 @@ export default function ListeningSession() {
 
   const language = getLanguage(langCode);
   const activeSessionId = typeof params.sessionId === 'string' ? params.sessionId : null;
+  const recoveryVisible = ready && questions.length === 0;
+
+  useEffect(() => {
+    if (!recoveryVisible || !activeSessionId || refundAttemptedRef.current) return;
+    refundAttemptedRef.current = true;
+    void refundPracticeSessionStart(activeSessionId, CREDIT_COSTS.drill);
+  }, [activeSessionId, recoveryVisible]);
 
   const {
     state,
