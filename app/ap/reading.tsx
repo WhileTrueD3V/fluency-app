@@ -142,68 +142,103 @@ function compactEvidenceText(text: string) {
   return text.toLowerCase().replace(/[\s。、，,.!?！？;；:：「」『』()（）"'’“”]/g, '');
 }
 
-function evidenceClauses(text: string) {
-  return text
-    .split(/[、，]/)
-    .map((part) => part.trim())
-    .filter((part) => part.length >= 4);
-}
+const ENGLISH_EVIDENCE_CUES: Array<[RegExp, string[]]> = [
+  [/cafe|coffee shop|coffee/i, ["カフェ"]],
+  [/park/i, ["公園"]],
+  [/study|studying/i, ["勉強"]],
+  [/quiet/i, ["静か"]],
+  [/station/i, ["駅前", "駅"]],
+  [/weekend/i, ["週末"]],
+  [/crowd|crowded|busy/i, ["こんで", "混んで"]],
+  [/seat|spacious/i, ["席", "広く"]],
+  [/staff|rush/i, ["店員", "急がされる", "急かされる"]],
+  [/cash/i, ["現金"]],
+  [/smartphone|phone/i, ["スマートフォン"]],
+  [/young/i, ["若い人"]],
+  [/discount/i, ["割引"]],
+  [/student id/i, ["学生証"]],
+  [/rain/i, ["雨"]],
+  [/ticket/i, ["チケット"]],
+  [/meeting|start time/i, ["会議", "開始時間"]],
+  [/train.*delay|delayed/i, ["電車が遅れて", "遅れて"]],
+  [/exchange|replace/i, ["交換"]],
+  [/zipper|broke|broken/i, ["チャック", "こわれて"]],
+];
 
 function inferEvidenceKeyword(evidence: string) {
   const phrase = evidence.match(/[一-龯][一-龯ぁ-んァ-ヶー]*(?:を|が|は|に|で)?[一-龯ぁ-んァ-ヶー]*/)?.[0];
   return phrase ?? evidence.slice(0, Math.min(16, evidence.length));
 }
 
-function refineEvidencePhrase(evidence: string, terms: string[]) {
-  const clauses = evidenceClauses(evidence);
-  if (clauses.length === 0) return evidence;
-  const ranked = clauses
-    .map((clause, index) => ({
-      clause,
-      index,
-      score: terms.reduce((sum, term) => sum + (compactEvidenceText(clause).includes(term) ? 1 : 0), 0),
-    }))
-    .sort((a, b) => b.score - a.score || b.index - a.index);
-  return ranked[0]?.clause ?? evidence;
+function cueTermsForQuestion(question: ReadingPromptQuestion) {
+  const correctChoice = question.choices[question.correctIndex] ?? "";
+  const source = [question.question, correctChoice].join(" ");
+  const cueTerms = ENGLISH_EVIDENCE_CUES
+    .filter(([pattern]) => pattern.test(source))
+    .flatMap(([, terms]) => terms);
+  const japaneseTerms = [question.evidence ?? "", question.keyword ?? ""]
+    .flatMap((text) => text.split(/[^一-龯ぁ-んァ-ヶー]+/))
+    .filter((term) => term.length >= 2);
+  return Array.from(new Set([...cueTerms, ...japaneseTerms].map(compactEvidenceText).filter((term) => term.length >= 2)));
+}
+
+function scoreEvidenceSentence(sentence: string, terms: string[]) {
+  const compactSentence = compactEvidenceText(sentence);
+  return terms.reduce((sum, term) => sum + (compactSentence.includes(term) ? 1 : 0), 0);
 }
 
 function getReadingEvidenceHint(passage: ReadingPassageSet, question: ReadingPromptQuestion): ReadingEvidenceHint {
   const sentences = splitPassageSentences(passage.passage);
   const explicitEvidence = question.evidence?.trim();
   const explicitKeyword = question.keyword?.trim();
-  const correctChoice = question.choices[question.correctIndex] ?? '';
-  const questionTerms = [question.question, correctChoice, explicitEvidence ?? '']
-    .flatMap((text) => text.split(/[^A-Za-z0-9一-龯ぁ-んァ-ヶー]+/))
-    .map((text) => compactEvidenceText(text))
-    .filter((text) => text.length >= 3);
-  const matchedEvidence = explicitEvidence
-    ? refineEvidencePhrase(sentences.find((sentence) => sentence.includes(explicitEvidence) || explicitEvidence.includes(sentence)) ?? explicitEvidence, questionTerms)
-    : '';
 
-  if (matchedEvidence) {
+  if (explicitEvidence) {
     return {
-      evidence: matchedEvidence,
-      keyword: explicitKeyword || inferEvidenceKeyword(matchedEvidence),
-      explanation: question.explanation?.trim() || 'This line gives the detail needed to choose the correct answer.',
+      evidence: passage.passage.includes(explicitEvidence)
+        ? explicitEvidence
+        : sentences.find((sentence) => sentence.includes(explicitEvidence) || explicitEvidence.includes(sentence)) ?? explicitEvidence,
+      keyword: explicitKeyword || inferEvidenceKeyword(explicitEvidence),
+      explanation: question.explanation?.trim() || "This line gives the detail needed to choose the correct answer.",
     };
   }
 
-  const bestSentence = sentences
-    .map((sentence) => ({
-      sentence,
-      score: questionTerms.reduce((sum, term) => sum + (compactEvidenceText(sentence).includes(term) ? 1 : 0), 0),
-    }))
-    .sort((a, b) => b.score - a.score)[0]?.sentence
-    ?? sentences[0]
-    ?? passage.passage;
+  const cueTerms = cueTermsForQuestion(question);
+  const ranked = sentences
+    .map((sentence, index) => ({ sentence, index, score: scoreEvidenceSentence(sentence, cueTerms) }))
+    .sort((a, b) => b.score - a.score || a.index - b.index);
+  const best = ranked[0];
 
-  const bestEvidence = refineEvidencePhrase(bestSentence, questionTerms);
+  if (!best || best.score <= 0) {
+    return {
+      evidence: "",
+      keyword: explicitKeyword || "",
+      explanation: question.explanation?.trim() || "",
+    };
+  }
 
   return {
-    evidence: bestEvidence,
-    keyword: explicitKeyword || inferEvidenceKeyword(bestEvidence),
-    explanation: question.explanation?.trim() || 'Use this sentence as the evidence trail, then match the key detail to the correct answer.',
+    evidence: best.sentence,
+    keyword: explicitKeyword || inferEvidenceKeyword(best.sentence),
+    explanation: question.explanation?.trim() || "This line gives the detail needed to choose the correct answer.",
   };
+}
+
+function readingExposureIds(passages: ReadingPassageSet[]) {
+  return passages.flatMap((passage) => [
+    passage.id,
+    compactEvidenceText([passage.title, passage.context, passage.passage].join(" ")).slice(0, 180),
+    ...passage.questions.flatMap((question) => [
+      question.id,
+      `${passage.id}:${question.id}`,
+      compactEvidenceText([
+        passage.title,
+        question.question,
+        question.choices[question.correctIndex] ?? "",
+        question.evidence ?? "",
+        question.keyword ?? "",
+      ].join(" ")).slice(0, 180),
+    ]),
+  ].filter(Boolean));
 }
 
 export default function APReadingSession() {
@@ -334,7 +369,7 @@ export default function APReadingSession() {
         ], passageCount, recentPromptIds, cachedPassages);
 
       if (!savedPassage && nextPassages.length > 0) {
-        void recordPromptExposure(code, 'reading', nextPassages.map((passage) => passage.id));
+        void recordPromptExposure(code, "reading", readingExposureIds(nextPassages));
       }
 
       setPassages(nextPassages);

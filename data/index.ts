@@ -28,6 +28,32 @@ function byDifficulty<T extends { difficulty: 'beginner' | 'intermediate' | 'adv
   return difficultyRank(a.difficulty) - difficultyRank(b.difficulty);
 }
 
+
+function normalizeRepeatKey(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/[\s。、，,.!?！？;；:：「」『』()（）"'’“”・-]/g, '')
+    .slice(0, 180);
+}
+
+function readingRepeatKeys(set: ReadingPassageSet) {
+  return [
+    set.id,
+    normalizeRepeatKey([set.title, set.context, set.passage].join(' ')),
+    ...set.questions.flatMap((question) => [
+      question.id,
+      set.id + ':' + question.id,
+      normalizeRepeatKey([
+        set.title,
+        question.question,
+        question.choices[question.correctIndex] ?? '',
+        question.evidence ?? '',
+        question.keyword ?? '',
+      ].join(' ')),
+    ]),
+  ].filter(Boolean);
+}
+
 function progressiveSubset<T extends { id: string; difficulty: 'beginner' | 'intermediate' | 'advanced' }>(
   items: T[],
   count: number,
@@ -122,5 +148,8 @@ export function getRandomReadingSets(
   excludedIds: string[] = [],
 ): ReadingPassageSet[] {
   const all = getReadingSets(langCode);
-  return progressiveSubset(all, count, totalXP, excludedIds);
+  const excluded = new Set(excludedIds);
+  const fresh = all.filter((set) => !readingRepeatKeys(set).some((key) => excluded.has(key)));
+  const pool = fresh.length > 0 ? fresh : all.filter((set) => !excluded.has(set.id));
+  return progressiveSubset(pool.length > 0 ? pool : all, count, totalXP, excludedIds);
 }

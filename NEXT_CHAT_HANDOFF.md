@@ -211,6 +211,17 @@ Latest web export wrote:
 
 The preview server for the latest pass was available at `http://127.0.0.1:8083`. If it looks stale, rebuild with `npm run build:web` and restart `npm run preview:web`. The user wants the demo kept current without repeated permission prompts.
 
+## Latest Reading Drill Fixes - June 16, 2026
+
+User reported three reading-drill failures: repeated Study Spot Advice prompt, wrong evidence highlight for "What does the writer recommend?", and incomplete furigana after a wrong answer. Fixes applied:
+
+- Local Study Spot Advice reading questions in `data/japanese.ts` now include explicit `evidence` and `keyword` metadata. For the recommendation question, the highlighted evidence is now `静かに勉強したいなら、少し遠くても公園の近くのカフェのほうがいいでしょう。`, not the unrelated weekend crowding sentence.
+- `app/ap/reading.tsx` evidence fallback no longer picks arbitrary clauses on zero-score ties. It uses explicit evidence first, then Japanese cue terms derived from the correct answer; if evidence confidence is zero, it highlights nothing instead of highlighting nonsense.
+- Reading prompt exposure now records passage IDs, question IDs, passage signatures, and question/evidence signatures via `readingExposureIds`, so repeat suppression has more than just the passage ID.
+- `data/index.ts` local reading fallback now filters by those repeat signatures before selecting static readings, reducing repeats when generated content/cache is unavailable.
+- `utils/furigana.ts` got broader dictionary coverage for the Study Spot and cashless passages, including `店`, `少し遠くても`, `公園の近く`, `長い時間`, `店員に急がされる`, etc. This improves full-review furigana, but it is still dictionary-based rather than a full morphological analyzer.
+- Verification after these fixes: `npx tsc --noEmit` passed and `npm run build:web` passed.
+
 ## Latest Placement / Boost Work
 
 The newest completed work added first-open placement and fixed two launcher-state bugs:
