@@ -401,11 +401,17 @@ export default function TranslationScreen() {
           ...cachedPrompts.map((prompt) => prompt.id),
         ],
       );
-      const nextPrompts = selectPracticeItems([
+      const selectedPrompts = selectPracticeItems([
         ...cachedPrompts,
         ...localPrompts,
         ...getRandomSpeakingPrompts(code, 10, 0, []),
       ], 10, recentPromptIds, cachedPrompts);
+      const emergencyPrompts = uniquePracticeItems([
+        ...localPrompts,
+        ...getRandomSpeakingPrompts(code, 10, stats.totalXP, []),
+        ...getRandomSpeakingPrompts(code, 10, 0, []),
+      ]).slice(0, 10);
+      const nextPrompts = selectedPrompts.length > 0 ? selectedPrompts : emergencyPrompts;
 
       setHydratedProgress(null);
       setPrompts(nextPrompts);

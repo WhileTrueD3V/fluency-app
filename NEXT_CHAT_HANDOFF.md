@@ -259,6 +259,31 @@ Validation:
 - Local preview was restarted at `http://127.0.0.1:8083`.
 - Browser smoke on `http://127.0.0.1:8083/listening/session?languageCode=ja&sessionId=smoke-...` showed the recovery copy cleanly when no local AI server was available. The static preview console still showed the known React Native Web `useNativeDriver` warning plus minified hydration warnings on direct drill-route load; the recovery state rendered and was usable.
 
+## Latest Drill Emergency Fallback Fix - June 17, 2026
+
+User then hit the recovery screen almost immediately after a drill started. The likely cause was not the 40-second timeout; it was the fresh-content selector returning zero usable items when generated content was unavailable and local items were all considered recently seen.
+
+Fix applied:
+
+- Listening, Reading, and Speaking now keep the strict no-repeat selector as the preferred path, but if that produces zero items they fall back to a deduped local emergency set.
+- Reading emergency fallback still respects the active difficulty window when possible, then falls back to any local reading passage only if the difficulty-safe pool is empty.
+- The emergency set is saved to the paid session cache and exposure history like normal content, so refreshes still resume the same set and do not mint free new drills.
+- Recovery should now be a true last resort instead of appearing just because the fresh pool is exhausted.
+
+Validation:
+
+- `npx tsc --noEmit` passed.
+- `npm run build:web` passed.
+- `npm run validate:launch` passed with the existing bundle-id warning.
+- `npm run ai:usage` stayed unchanged at 48 calls / about `4.2491` cents lifetime, so this fix did not spend paid AI.
+- Local preview was restarted at `http://127.0.0.1:8083`.
+- Browser smoke showed no recovery screen for direct local preview loads of:
+  - `/listening/session?languageCode=ja&sessionId=smoke-listening-fallback-...`
+  - `/ap/reading?languageCode=ja&sessionId=smoke-reading-fallback-...`
+  - `/speaking/translation?languageCode=ja&sessionId=smoke-speaking-fallback-...`
+  - `/ap/conversation?languageCode=ja&sessionId=smoke-conversation-fallback-...`
+  - `/ap/texting?languageCode=ja&sessionId=smoke-texting-fallback-...`
+
 ## Latest Drill Refresh Progress Fix - June 16, 2026
 
 User later reported that refresh no longer created free new drill sets, but still reset answered questions and timers. Follow-up fix applied locally:

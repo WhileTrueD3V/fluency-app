@@ -51,6 +51,7 @@ import {
   loadGeneratedPracticeCache,
   refreshGeneratedPracticeCache,
   selectPracticeItems,
+  uniquePracticeItems,
 } from '@/utils/practiceContentQueue';
 import { practiceRepeatKeys } from '@/utils/practiceRepeatKeys';
 import {
@@ -252,11 +253,17 @@ export default function ListeningSession() {
           ...cachedQuestions.map((question) => question.id),
         ],
       );
-      const nextQuestions = selectPracticeItems([
+      const selectedQuestions = selectPracticeItems([
         ...cachedQuestions,
         ...fallbackQuestions,
         ...getRandomListeningQuestions(code, sessionLength, 0, []),
       ], sessionLength, recentPromptIds, cachedQuestions);
+      const emergencyQuestions = uniquePracticeItems([
+        ...fallbackQuestions,
+        ...getRandomListeningQuestions(code, sessionLength, stats.totalXP, []),
+        ...getRandomListeningQuestions(code, sessionLength, 0, []),
+      ]).slice(0, sessionLength);
+      const nextQuestions = selectedQuestions.length > 0 ? selectedQuestions : emergencyQuestions;
 
       setHydratedProgress(null);
       setQuestions(nextQuestions);
