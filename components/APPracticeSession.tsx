@@ -208,6 +208,7 @@ export function APPracticeSession({ mode }: { mode: APPracticeMode }) {
   const saveAfterReviewRef = useRef(saveAfterReview);
   const recordingUrisRef = useRef(recordingUris);
   const refundAttemptedRef = useRef(false);
+  const hydratedTimerRef = useRef(false);
 
   const language = getLanguage(langCode);
   const set = practiceSet;
@@ -378,6 +379,7 @@ export function APPracticeSession({ mode }: { mode: APPracticeMode }) {
     const nextAnswers = hydratedProgress?.answers?.length === practiceSet.prompts.length ? hydratedProgress.answers : blankAnswers;
     const nextUris = hydratedProgress?.recordingUris?.length === practiceSet.prompts.length ? hydratedProgress.recordingUris : blankUris;
     const nextTurnIndex = Math.min(Math.max(0, hydratedProgress?.turnIndex ?? 0), Math.max(0, practiceSet.prompts.length - 1));
+    hydratedTimerRef.current = typeof hydratedProgress?.secondsLeft === 'number';
     setTurnIndex(nextTurnIndex);
     setSecondsLeft(hydratedProgress?.secondsLeft ?? (mode === 'conversation' ? CONVERSATION_TURN_SECONDS : TEXTING_TURN_SECONDS));
     setAnswers(nextAnswers);
@@ -584,7 +586,11 @@ export function APPracticeSession({ mode }: { mode: APPracticeMode }) {
       setSecondsLeft(turnSeconds);
       return;
     }
-    setSecondsLeft(turnSeconds);
+    if (hydratedTimerRef.current) {
+      hydratedTimerRef.current = false;
+    } else {
+      setSecondsLeft(turnSeconds);
+    }
     const timer = setInterval(() => {
       setSecondsLeft((current) => {
         if (current <= 1) {

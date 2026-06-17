@@ -55,6 +55,9 @@ const generatedMemoryCache: PracticeCache = {
   texting: {},
 };
 
+const FOREGROUND_GENERATED_CONTENT_TIMEOUT_MS = 40000;
+const BACKGROUND_PREWARM_CONTENT_TIMEOUT_MS = 9000;
+
 const DEFAULT_TARGET_SKILLS: Record<AIPracticeMode, string[]> = {
   listening: [
     'Generate fresh AP Japanese listening items that feel teacher-written, level-aware, and ready for the current drill.',
@@ -282,7 +285,7 @@ export async function generatePersonalizedPracticeBatch<T extends GeneratedPromp
   recentPromptIds,
   count,
   targetSkills = [],
-  timeoutMs = 7000,
+  timeoutMs = FOREGROUND_GENERATED_CONTENT_TIMEOUT_MS,
 }: {
   mode: PromptHistoryType;
   languageCode: LanguageCode;
@@ -338,6 +341,7 @@ export async function refreshGeneratedPracticeCache({
   recentPromptIds,
   count,
   targetSkills = [],
+  timeoutMs = FOREGROUND_GENERATED_CONTENT_TIMEOUT_MS,
 }: {
   mode: PromptHistoryType;
   languageCode: LanguageCode;
@@ -345,6 +349,7 @@ export async function refreshGeneratedPracticeCache({
   recentPromptIds: string[];
   count: number;
   targetSkills?: string[];
+  timeoutMs?: number;
 }): Promise<GeneratedPromptItem[]> {
   if (languageCode !== 'ja') return [];
 
@@ -368,7 +373,7 @@ export async function refreshGeneratedPracticeCache({
       ...targetSkills,
     ],
     profile,
-  }, 4500);
+  }, timeoutMs);
 
   const generated = aiContent ? parseGeneratedItems(mode, aiContent.items) : [];
   const freshGenerated = filterFreshPracticeItems(
@@ -417,6 +422,7 @@ export async function prewarmGeneratedPracticeQueues({
       totalXP,
       recentPromptIds,
       count: targetCount,
+      timeoutMs: BACKGROUND_PREWARM_CONTENT_TIMEOUT_MS,
       targetSkills: [
         'background queue prewarm before the learner opens this drill',
         'fresh non-repeating AP Japanese content',

@@ -284,6 +284,32 @@ Validation:
   - `/ap/conversation?languageCode=ja&sessionId=smoke-conversation-fallback-...`
   - `/ap/texting?languageCode=ja&sessionId=smoke-texting-fallback-...`
 
+## Latest Bug Audit Fixes - June 17, 2026
+
+User asked for a broad bug audit after the drill fallback fix. Two concrete issues were found and fixed:
+
+- `utils/practiceContentQueue.ts` still overrode the newer 40-second generated-content timeout:
+  - `generatePersonalizedPracticeBatch(...)` defaulted to `7000ms`.
+  - `refreshGeneratedPracticeCache(...)` hard-coded `4500ms`.
+  - This could make foreground drill generation fail after only a few seconds, causing local fallback/recovery behavior and worsening perceived repeats.
+  - Foreground generation now uses `40000ms`, matching `utils/aiContent.ts`; background prewarm now explicitly uses a shorter `9000ms` timeout so startup/background work does not quietly hang.
+- `components/APPracticeSession.tsx` restored AP conversation/texting progress on reload, but the timer effect immediately reset `secondsLeft` to the full turn time.
+  - Added a one-shot hydration guard so restored conversation/texting timers survive reload.
+  - Browser smoke for `/ap/texting?...sessionId=audit-timer-reload-...` showed `86s` before reload and `85s` after reload, so it did not reset to full time.
+
+Validation:
+
+- `npx tsc --noEmit` passed.
+- `node --check server/grading-server.mjs` passed.
+- `npm run build:web` passed; latest bundle was `dist/_expo/static/js/web/entry-caa938a201c6d63727a86fa529a2eaeb.js`.
+- `npm run validate:launch` passed with the existing bundle-id warning.
+- `npm run audit:ai-cost` passed.
+- `npm run audit:ai-quality` passed.
+- `npm run feedback:report` passed with 0 local feedback submissions.
+- `npm run ai:usage` stayed unchanged at 48 calls / about `4.2491` cents lifetime, so this audit did not spend paid AI.
+- Preview restarted at `http://127.0.0.1:8083`.
+- Browser smoke showed no recovery screen for listening, reading, speaking, conversation, or texting direct route loads.
+
 ## Latest Drill Refresh Progress Fix - June 16, 2026
 
 User later reported that refresh no longer created free new drill sets, but still reset answered questions and timers. Follow-up fix applied locally:
