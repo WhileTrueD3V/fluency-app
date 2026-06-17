@@ -17,6 +17,7 @@ import { Colors } from '@/constants/colors';
 import { DrillAccents } from '@/constants/drillAccents';
 import {
   getPrefs,
+  getDrillSessionContent,
   getRecentPromptIds,
   getSavedItems,
   getStartingLevelProfile,
@@ -26,6 +27,7 @@ import {
   recordAttemptMemory,
   recordListeningSession,
   recordPromptExposure,
+  saveDrillSessionContent,
   removeSavedItem,
   saveItem,
 } from '@/utils/storage';
@@ -197,6 +199,14 @@ export default function ListeningSession() {
         return;
       }
 
+      const sessionId = typeof params.sessionId === 'string' ? params.sessionId : null;
+      const storedSessionQuestions = await getDrillSessionContent<ListeningQuestion>(code, 'listening', sessionId);
+      if (storedSessionQuestions.length > 0) {
+        setQuestions(storedSessionQuestions.slice(0, sessionLength));
+        setReady(true);
+        return;
+      }
+
       let cachedQuestions = selectPracticeItems([
         ...storedGenerated,
         ...getGeneratedPracticeMemory<ListeningQuestion>('listening', code),
@@ -239,6 +249,7 @@ export default function ListeningSession() {
 
       setQuestions(nextQuestions);
       setReady(nextQuestions.length > 0);
+      await saveDrillSessionContent(code, 'listening', sessionId, nextQuestions);
       if (nextQuestions.length > 0) {
         void recordPromptExposure(code, 'listening', nextQuestions.map((question) => question.id));
       }

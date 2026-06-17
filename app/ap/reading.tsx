@@ -40,6 +40,7 @@ import {
 } from '@/utils/practiceContentQueue';
 import {
   getAppSettings,
+  getDrillSessionContent,
   getStartingLevelProfile,
   getPrefs,
   getRecentPromptIds,
@@ -49,6 +50,7 @@ import {
   hasCompletedRewardKey,
   recordAttemptMemory,
   recordPromptExposure,
+  saveDrillSessionContent,
   recordReadingSession,
   removeSavedItem,
   saveItem,
@@ -312,6 +314,7 @@ export default function APReadingSession() {
         getSessionHistory(),
       ]);
       if (cancelled) return;
+      const sessionId = typeof params.sessionId === 'string' ? params.sessionId : null;
       const level = getPlayerLevel(stats.totalXP);
       const startingProfile = await getStartingLevelProfile();
       const languageSessions = sessions.filter((session) => session.languageCode === code);
@@ -321,8 +324,28 @@ export default function APReadingSession() {
           getAstroChallengeBoostState(level.level, startingProfile, sessions, code),
         )
         : INACTIVE_CHALLENGE_BOOST;
-      const allowedDifficulties = allowedReadingDifficultiesForBoost(level, boost);
       setChallengeBoost(boost);
+      const storedSessionPassages = savedPassage ? [] : await getDrillSessionContent<ReadingPassageSet>(code, 'reading', sessionId);
+      if (storedSessionPassages.length > 0) {
+        setSavedIds(new Set(
+          savedItems
+            .filter((item) => item.type === 'reading' && item.languageCode === code)
+            .map((item) => item.promptId),
+        ));
+        setPassages(storedSessionPassages.slice(0, passageCount));
+        setCurrentPassageIndex(0);
+        setCurrentQuestionIndex(0);
+        setAnswers([]);
+        setSelectedIndex(null);
+        setPhase('answering');
+        setStreak(0);
+        setBestStreak(0);
+        setTotalXP(0);
+        setReady(true);
+        return;
+      }
+
+      const allowedDifficulties = allowedReadingDifficultiesForBoost(level, boost);
       let cachedPassages = selectPracticeItems([
         ...getGeneratedPracticeMemory<ReadingPassageSet>('reading', code),
         ...storedGenerated,
@@ -373,6 +396,7 @@ export default function APReadingSession() {
       }
 
       setPassages(nextPassages);
+      await saveDrillSessionContent(code, 'reading', sessionId, nextPassages);
       setCurrentPassageIndex(0);
       setCurrentQuestionIndex(0);
       setAnswers([]);

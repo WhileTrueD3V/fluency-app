@@ -233,6 +233,7 @@ const KEYS = {
   WEAK_MEMORY: '@fluent:weakMemory',
   FIRST_COMPLETION_FEEDBACK: '@fluent:firstCompletionFeedback',
   STARTING_LEVEL_PROFILE: '@fluent:startingLevelProfile',
+  DRILL_SESSION_CONTENT: '@fluent:drillSessionContent',
 } as const;
 
 const RECENT_PROMPT_LIMIT = 80;
@@ -1374,6 +1375,63 @@ export async function recordPromptExposure(
 }
 
 type GeneratedPromptCache = Record<string, GeneratedPromptItem[]>;
+
+type DrillSessionContentCache = Record<string, {
+  languageCode: string;
+  type: PromptHistoryType;
+  sessionId: string;
+  items: GeneratedPromptItem[];
+  updatedAt: number;
+}>;
+
+function drillSessionContentKey(languageCode: string, type: PromptHistoryType, sessionId: string) {
+  return languageCode + ':' + type + ':' + sessionId;
+}
+
+export async function getDrillSessionContent<T extends GeneratedPromptItem>(
+  languageCode: string,
+  type: PromptHistoryType,
+  sessionId?: string | null,
+): Promise<T[]> {
+  if (!sessionId) return [];
+  try {
+    const raw = await AsyncStorage.getItem(KEYS.DRILL_SESSION_CONTENT);
+    const cache: DrillSessionContentCache = raw ? JSON.parse(raw) : {};
+    const entry = cache[drillSessionContentKey(languageCode, type, sessionId)];
+    if (!entry || !Array.isArray(entry.items)) return [];
+    return entry.items as T[];
+  } catch {
+    return [];
+  }
+}
+
+export async function saveDrillSessionContent<T extends GeneratedPromptItem>(
+  languageCode: string,
+  type: PromptHistoryType,
+  sessionId: string | null | undefined,
+  items: T[],
+): Promise<void> {
+  if (!sessionId || items.length === 0) return;
+  try {
+    const raw = await AsyncStorage.getItem(KEYS.DRILL_SESSION_CONTENT);
+    const cache: DrillSessionContentCache = raw ? JSON.parse(raw) : {};
+    cache[drillSessionContentKey(languageCode, type, sessionId)] = {
+      languageCode,
+      type,
+      sessionId,
+      items: items as GeneratedPromptItem[],
+      updatedAt: Date.now(),
+    };
+    const compact = Object.fromEntries(
+      Object.entries(cache)
+        .sort(([, a], [, b]) => b.updatedAt - a.updatedAt)
+        .slice(0, 50),
+    );
+    await AsyncStorage.setItem(KEYS.DRILL_SESSION_CONTENT, JSON.stringify(compact));
+  } catch {
+    // Session content is a credit-safety cache. If storage fails, the drill should still load.
+  }
+}
 
 export async function getGeneratedPromptCache<T extends GeneratedPromptItem>(
   languageCode: string,

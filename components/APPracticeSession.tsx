@@ -23,6 +23,7 @@ import { getLanguage, type LanguageCode } from '@/constants/languages';
 import {
   getPrefs,
   getRecentPromptIds,
+  getDrillSessionContent,
   getStartingLevelProfile,
   getSessionHistory,
   getStatsForLanguage,
@@ -31,6 +32,7 @@ import {
   recordAttemptMemory,
   recordAPPracticeSession,
   recordPromptExposure,
+  saveDrillSessionContent,
   removeSavedItem,
   upsertSavedItem,
   xpForAPScore,
@@ -156,7 +158,7 @@ export function APPracticeSession({ mode }: { mode: APPracticeMode }) {
   const router = useRouter();
   const { width } = useWindowDimensions();
   const isCompact = width < APP_COMPACT_BREAKPOINT;
-  const params = useLocalSearchParams<{ promptId?: string; languageCode?: string; mockId?: string; rewardKey?: string; targetSkills?: string }>();
+  const params = useLocalSearchParams<{ promptId?: string; languageCode?: string; mockId?: string; rewardKey?: string; sessionId?: string; targetSkills?: string }>();
   const [langCode, setLangCode] = useState<LanguageCode>('ja');
   const [turnIndex, setTurnIndex] = useState(0);
   const [secondsLeft, setSecondsLeft] = useState(mode === 'conversation' ? CONVERSATION_TURN_SECONDS : TEXTING_TURN_SECONDS);
@@ -246,6 +248,7 @@ export function APPracticeSession({ mode }: { mode: APPracticeMode }) {
         return;
       }
 
+      const sessionId = typeof params.sessionId === 'string' ? params.sessionId : null;
       const [stats, recentPromptIds, storedGenerated, sessions] = await Promise.all([
         getStatsForLanguage(code),
         getRecentPromptIds(code, mode),
@@ -263,6 +266,13 @@ export function APPracticeSession({ mode }: { mode: APPracticeMode }) {
         )
         : INACTIVE_CHALLENGE_BOOST;
       setChallengeBoost(boost);
+
+      const storedSessionSets = await getDrillSessionContent<APPromptSet>(code, mode, sessionId);
+      if (storedSessionSets.length > 0) {
+        setPracticeSet(storedSessionSets[0]);
+        setIsLoadingSet(false);
+        return;
+      }
 
       let cachedSets = selectPracticeItems([
         ...storedGenerated,
@@ -295,6 +305,7 @@ export function APPracticeSession({ mode }: { mode: APPracticeMode }) {
         ...localSets,
       ], 1, recentPromptIds, cachedSets)[0] ?? localSets[0] ?? getAPPracticeSetById(mode, 'ja');
       setPracticeSet(nextSet);
+      await saveDrillSessionContent(code, mode, sessionId, [nextSet]);
       setIsLoadingSet(false);
       void recordPromptExposure(code, mode, [nextSet.id]);
       if (cachedSets.length === 0) {
@@ -319,7 +330,7 @@ export function APPracticeSession({ mode }: { mode: APPracticeMode }) {
     return () => {
       cancelled = true;
     };
-  }, [mode, params.languageCode, params.promptId, params.targetSkills]);
+  }, [mode, params.languageCode, params.promptId, params.sessionId, params.targetSkills]);
 
   useEffect(() => {
     if (!practiceSet) return;

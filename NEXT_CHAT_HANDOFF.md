@@ -211,6 +211,17 @@ Latest web export wrote:
 
 The preview server for the latest pass was available at `http://127.0.0.1:8083`. If it looks stale, rebuild with `npm run build:web` and restart `npm run preview:web`. The user wants the demo kept current without repeated permission prompts.
 
+## Latest Drill Reload / Credit Safety Fix - June 16, 2026
+
+User reported a serious exploit/inconvenience: refreshing a drill route generated a new question set without spending another credit. Fix applied locally and pushed after validation:
+
+- Added paid-session content caching in `utils/storage.ts` via `getDrillSessionContent` / `saveDrillSessionContent`, keyed by language, drill type, and route `sessionId`.
+- Home launchers now pass fresh `sessionId` values for listening, reading, speaking, conversation, and texting sessions after the credit confirmation.
+- Mini Mock uses stable per-mock/per-section session ids like `mockId:listening`, so refreshing a mock part resumes the same paid part while a new mock attempt can still get fresh content.
+- Listening, Reading, Speaking, Conversation, and Texting routes now check the session cache before generated/local selection and save the selected/generated content for that session.
+- Challenge/Astro boost state is still computed before session-cache resume where it affects rewards, so refresh should not quietly drop boost behavior.
+- Verification passed: `npx tsc --noEmit` and `npm run build:web`.
+
 ## Latest Reading Drill Fixes - June 16, 2026
 
 User reported three reading-drill failures: repeated Study Spot Advice prompt, wrong evidence highlight for "What does the writer recommend?", and incomplete furigana after a wrong answer. Fixes applied:

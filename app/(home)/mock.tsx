@@ -486,7 +486,7 @@ export default function MockScreen() {
     const targetSkills = encodeTargetSkills(getMockTierTargetSkills(challengeTierIndex, step.section));
     router.push({
       pathname: step.route,
-      params: { ...step.params, mockId: current.id, ...(targetSkills ? { targetSkills } : {}) },
+      params: { ...step.params, sessionId: `${current.id}:${step.section}`, mockId: current.id, ...(targetSkills ? { targetSkills } : {}) },
     });
   };
 

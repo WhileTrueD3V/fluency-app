@@ -20,12 +20,14 @@ import { DrillAccents, tint } from '@/constants/drillAccents';
 import {
   getPrefs,
   getRecentPromptIds,
+  getDrillSessionContent,
   getStartingLevelProfile,
   getSessionHistory,
   getStatsForLanguage,
   hasCompletedRewardKey,
   isItemSaved,
   recordPromptExposure,
+  saveDrillSessionContent,
 } from '@/utils/storage';
 import { getRandomSpeakingPrompts, getSpeakingPromptById } from '@/data';
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
@@ -248,6 +250,7 @@ export default function TranslationScreen() {
     languageCode?: string;
     mockId?: string;
     rewardKey?: string;
+    sessionId?: string;
     targetSkills?: string;
   }>();
   const initialLangCode = ((params.languageCode as LanguageCode | undefined) ?? 'ja') as LanguageCode;
@@ -332,6 +335,14 @@ export default function TranslationScreen() {
         return;
       }
 
+      const sessionId = typeof params.sessionId === 'string' ? params.sessionId : null;
+      const storedSessionPrompts = await getDrillSessionContent<SpeakingPrompt>(code, 'speaking', sessionId);
+      if (storedSessionPrompts.length > 0) {
+        setPrompts(storedSessionPrompts);
+        setCurrentIdx(0);
+        return;
+      }
+
       let cachedPrompts = selectPracticeItems([
         ...storedGenerated,
         ...getGeneratedPracticeMemory<SpeakingPrompt>('speaking', code),
@@ -374,6 +385,7 @@ export default function TranslationScreen() {
       ], 10, recentPromptIds, cachedPrompts);
 
       setPrompts(nextPrompts);
+      await saveDrillSessionContent(code, 'speaking', sessionId, nextPrompts);
       setCurrentIdx(0);
       if (nextPrompts.length > 0) {
         void recordPromptExposure(code, 'speaking', nextPrompts.map((prompt) => prompt.id));
@@ -400,7 +412,7 @@ export default function TranslationScreen() {
     return () => {
       cancelled = true;
     };
-  }, [params.languageCode, params.promptId, params.targetSkills]);
+  }, [params.languageCode, params.promptId, params.sessionId, params.targetSkills]);
 
   const language = getLanguage(langCode);
   const currentPrompt = prompts[currentIdx] ?? null;

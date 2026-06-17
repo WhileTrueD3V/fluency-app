@@ -2449,7 +2449,7 @@ export default function HomeScreen() {
   const startSpeakingDrill = (targetSkills: string[] = [], rewardKey?: string) => {
     startPracticeSession(() => router.push({
       pathname: '/speaking/translation',
-      params: { languageCode: langCode, ...(rewardKey ? { rewardKey } : {}), ...targetSkillRouteParams(targetSkills) },
+      params: { sessionId: `${Date.now()}`, languageCode: langCode, ...(rewardKey ? { rewardKey } : {}), ...targetSkillRouteParams(targetSkills) },
     }), {
       title: 'Timed speaking control',
       subtitle: 'A generated spoken drill that targets delivery, pace, and complete responses.',
@@ -2469,7 +2469,7 @@ export default function HomeScreen() {
   const startConversationSet = (targetSkills: string[] = [], rewardKey?: string) => {
     startPracticeSession(() => router.push({
       pathname: '/ap/conversation',
-      params: { languageCode: langCode, ...(rewardKey ? { rewardKey } : {}), ...targetSkillRouteParams(targetSkills) },
+      params: { sessionId: `${Date.now()}`, languageCode: langCode, ...(rewardKey ? { rewardKey } : {}), ...targetSkillRouteParams(targetSkills) },
     }), {
       title: 'Simulated conversation repair',
       subtitle: 'Four 20-second turns scored for delivery, task completion, and register.',
@@ -2479,7 +2479,7 @@ export default function HomeScreen() {
   const startTextingSet = (targetSkills: string[] = [], rewardKey?: string) => {
     startPracticeSession(() => router.push({
       pathname: '/ap/texting',
-      params: { languageCode: langCode, ...(rewardKey ? { rewardKey } : {}), ...targetSkillRouteParams(targetSkills) },
+      params: { sessionId: `${Date.now()}`, languageCode: langCode, ...(rewardKey ? { rewardKey } : {}), ...targetSkillRouteParams(targetSkills) },
     }), {
       title: 'Text-chat register repair',
       subtitle: 'Timed written replies focused on language use, completion, and natural AP tone.',
