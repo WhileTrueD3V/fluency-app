@@ -621,6 +621,20 @@ Verification after this pass:
 - `node --check server/grading-server.mjs` passed.
 - `npm run build:web` passed and exported `dist/_expo/static/js/web/entry-d923205bb5c906b4f2d5013967504eee.js`.
 
+## Latest Drill Loading Notice Polish - June 17, 2026
+
+User said the warmup notice on the shared drill loading surface was too easy to miss. Fix applied:
+
+- `components/DrillLoadingState.tsx` now renders the warmup copy as a stronger callout with a coral accent rail, animated flame badge, uppercase `First-time build` label, bolder copy, and a soft shadow.
+- The copy remains honest: first build takes longest, warmed drills usually open faster.
+- The change is centralized in the shared loading component used by listening, reading, speaking, AP conversation, and AP text chat loading states.
+
+Verification after this pass:
+
+- `npx tsc --noEmit` passed.
+- `npm run build:web` passed and exported `dist/_expo/static/js/web/entry-a93c1f8623e26d9a54c7248675c1b040.js`.
+- Browser sanity check loaded `http://127.0.0.1:8083/` with the new bundle and meaningful Kibbo content. The only browser warnings observed were the existing React Native Web `useNativeDriver` fallback warnings.
+
 ## What Is Still Left
 
 The main remaining work is not the core personalization plumbing. It is:

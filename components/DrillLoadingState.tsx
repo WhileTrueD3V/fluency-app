@@ -11,6 +11,7 @@ import { APP_COMPACT_BREAKPOINT } from '@/components/AppFooterTabs';
 import {
   BookOpenIcon,
   FileTextIcon,
+  FlameIcon,
   HeadphonesIcon,
   MessageCircleIcon,
   MicrophoneIcon,
@@ -205,10 +206,24 @@ export function DrillLoadingState({
 
         <Text style={[styles.subtitle, isMobile && styles.subtitleMobile]}>{displaySubtitle}</Text>
 
-        <View style={styles.cacheNote}>
-          <Text style={styles.cacheNoteText}>
-            First build takes the longest. After Kibbo warms this drill, fresh sets usually open much faster.
-          </Text>
+        <View style={[styles.cacheNote, isMobile && styles.cacheNoteMobile]}>
+          <View style={styles.cacheAccent} />
+          <Animated.View
+            style={[
+              styles.cacheIcon,
+              {
+                transform: [{ scale: iconScale }],
+              },
+            ]}
+          >
+            <FlameIcon size={18} color={Colors.primary} strokeWidth={2.1} />
+          </Animated.View>
+          <View style={styles.cacheCopy}>
+            <Text style={styles.cacheNoteKicker}>First-time build</Text>
+            <Text style={styles.cacheNoteText}>
+              First build takes the longest. After Kibbo warms this drill, fresh sets usually open much faster.
+            </Text>
+          </View>
         </View>
 
         <View style={styles.stepGrid}>
@@ -366,18 +381,68 @@ const styles = StyleSheet.create({
     lineHeight: 21,
   },
   cacheNote: {
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: Colors.surfaceTranslucent,
+    position: 'relative',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    overflow: 'hidden',
+    borderRadius: 22,
+    borderWidth: 2,
+    borderColor: '#F5B8B0',
+    backgroundColor: '#FFF5F2',
+    paddingHorizontal: 14,
+    paddingVertical: 13,
+    shadowColor: Colors.primary,
+    shadowOpacity: 0.12,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 10 },
+  },
+  cacheNoteMobile: {
+    alignItems: 'flex-start',
+    gap: 10,
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 12,
+  },
+  cacheAccent: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 7,
+    backgroundColor: Colors.primary,
+  },
+  cacheIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#F3C9C4',
+    shadowColor: Colors.primary,
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+  },
+  cacheCopy: {
+    flex: 1,
+    gap: 3,
+    paddingRight: 2,
+  },
+  cacheNoteKicker: {
+    color: Colors.primary,
+    fontSize: 11,
+    lineHeight: 13,
+    fontWeight: '900',
+    letterSpacing: 1.8,
+    textTransform: 'uppercase',
   },
   cacheNoteText: {
-    color: Colors.textSub,
-    fontSize: 13,
-    lineHeight: 18,
-    fontWeight: '800',
+    color: Colors.text,
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: '900',
   },
   stepGrid: {
     flexDirection: 'row',
