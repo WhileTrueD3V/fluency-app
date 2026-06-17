@@ -51,7 +51,11 @@ export function FuriganaText({ text, mode = 'full', compact, textScale = 1, high
         const highlighted = highlightStart >= 0 && start < highlightEnd && end > highlightStart;
         cursor = end;
         return (
-        <View key={`${segment.text}-${index}`} style={[styles.segment, compact && styles.segmentCompact, highlighted && styles.segmentHighlighted, highlighted && highlightStyle, { minHeight }]}>
+        <View
+          key={`${segment.text}-${index}`}
+          testID={highlighted ? 'furigana-highlight' : undefined}
+          style={[styles.segment, compact && styles.segmentCompact, highlighted && styles.segmentHighlighted, highlighted && highlightStyle, { minHeight }]}
+        >
           <Text
             style={[
               styles.reading,

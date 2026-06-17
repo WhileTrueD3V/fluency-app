@@ -745,6 +745,26 @@ Verification after this pass:
 - Browser smoke loaded `http://127.0.0.1:8083/?fresh=timeout-guard-final` with meaningful Kibbo content and no framework overlay.
 - Browser smoke loaded `http://127.0.0.1:8083/listening/session?languageCode=ja&fresh=timeout-guard-final`; after several seconds it showed the recovery surface with no framework overlay or relevant console errors.
 
+## Latest Reading Evidence / Repeat Audit - June 17, 2026
+
+The user reported that furigana appeared after a wrong reading answer, but the decisive passage phrase was not visibly highlighted, and the local `Rain delay notice` prompt repeated repeatedly. Fixes applied:
+
+- `app/ap/reading.tsx` now only uses evidence phrases that actually exist in the Japanese passage. English answer text or loose sentence guesses no longer drive highlights.
+- Reading evidence now prefers the shortest decisive Japanese cue/keyword, so intent/request questions highlight phrases like `できれば交換していただきたいです` instead of the whole setup sentence.
+- `components/FuriganaText.tsx` adds a `furigana-highlight` test id to highlighted ruby segments, making browser QA able to prove exact highlighted text and style.
+- `data/japanese.ts` now has explicit Japanese `evidence` and `keyword` values for all 17 local Japanese reading questions.
+- `data/index.ts` no longer falls back to repeated local reading sets when recent-history filtering blocks every local passage.
+- Listening, speaking translation, AP conversation, and AP texting also had stale emergency fallbacks removed. If generated content is unavailable and all local backups are blocked as recent repeats, the drill should show the recovery/refund surface instead of serving a stale repeat.
+
+Verification after this pass:
+
+- Browser QA loaded `http://127.0.0.1:8083/ap/reading?languageCode=ja&promptId=ja-rd-02...`, selected the wrong answer, and confirmed two highlighted `furigana-highlight` segments with teal background/border: `雨` and `のため、`.
+- Static reading-bank audit confirmed all 17 local reading questions have evidence and keyword fields.
+- `npx tsc --noEmit` passed.
+- `npm run build:web` passed and exported `dist/_expo/static/js/web/entry-cd0433a23b892f77efce75ebf684076a.js`.
+- `npm run validate:launch` passed with the existing bundle-id warning.
+- `npm run audit:ai-quality` passed offline. No live paid AI calls were made; `npm run ai:usage` still showed 48 logged calls / about `4.2491` cents lifetime.
+
 ## What Is Still Left
 
 The main remaining work is not the core personalization plumbing. It is:

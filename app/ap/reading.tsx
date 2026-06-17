@@ -44,6 +44,7 @@ import { practiceRepeatKeys } from '@/utils/practiceRepeatKeys';
 import {
   CREDIT_COSTS,
   getAppSettings,
+  getAttemptMemory,
   getDrillSessionContent,
   getDrillSessionProgress,
   getStartingLevelProfile,
@@ -183,6 +184,31 @@ function trimEvidencePhrase(text: string) {
   return text.trim().replace(/^[、，,\s]+/, '').replace(/[。！？!?、，,\s]+$/, '');
 }
 
+function hasJapaneseText(text: string) {
+  return /[一-龯ぁ-んァ-ヶー]/.test(text);
+}
+
+function exactPassageEvidence(passage: string, evidence?: string) {
+  const trimmed = trimEvidencePhrase(evidence ?? '');
+  if (!trimmed || !hasJapaneseText(trimmed)) return null;
+  if (passage.includes(trimmed)) return trimmed;
+
+  const sentences = splitPassageSentences(passage);
+  const compactEvidence = compactEvidenceText(trimmed);
+  const matchedSentence = sentences.find((sentence) => {
+    const compactSentence = compactEvidenceText(sentence);
+    return compactSentence.includes(compactEvidence) || compactEvidence.includes(compactSentence);
+  });
+  return matchedSentence ?? null;
+}
+
+function passageSafeEvidence(passage: string, evidence: string, fallback: string) {
+  const trimmedEvidence = trimEvidencePhrase(evidence);
+  if (trimmedEvidence && passage.includes(trimmedEvidence)) return trimmedEvidence;
+  const trimmedFallback = trimEvidencePhrase(fallback);
+  return trimmedFallback && passage.includes(trimmedFallback) ? trimmedFallback : '';
+}
+
 function shortestDecisiveEvidencePhrase(
   evidence: string,
   question: ReadingPromptQuestion,
@@ -190,7 +216,7 @@ function shortestDecisiveEvidencePhrase(
 ) {
   const source = `${question.question} ${question.choices[question.correctIndex] ?? ''}`;
   const keyword = explicitKeyword?.trim();
-  if (keyword && evidence.includes(keyword) && keyword.length >= 5) return keyword;
+  if (keyword && evidence.includes(keyword) && hasJapaneseText(keyword) && keyword.length >= 3) return keyword;
 
   const clauses = evidence
     .split(/[、，,。！？!?]/)
@@ -237,14 +263,16 @@ function getReadingEvidenceHint(passage: ReadingPassageSet, question: ReadingPro
   const explicitEvidence = question.evidence?.trim();
   const explicitKeyword = question.keyword?.trim();
 
-  if (explicitEvidence) {
-    const matchedEvidence = passage.passage.includes(explicitEvidence)
-      ? explicitEvidence
-      : sentences.find((sentence) => sentence.includes(explicitEvidence) || explicitEvidence.includes(sentence)) ?? explicitEvidence;
-    const highlightEvidence = shortestDecisiveEvidencePhrase(matchedEvidence, question, explicitKeyword);
+  const matchedExplicitEvidence = exactPassageEvidence(passage.passage, explicitEvidence);
+  if (matchedExplicitEvidence) {
+    const highlightEvidence = passageSafeEvidence(
+      passage.passage,
+      shortestDecisiveEvidencePhrase(matchedExplicitEvidence, question, explicitKeyword),
+      matchedExplicitEvidence,
+    );
     return {
       evidence: highlightEvidence,
-      keyword: explicitKeyword || inferEvidenceKeyword(explicitEvidence),
+      keyword: explicitKeyword || inferEvidenceKeyword(matchedExplicitEvidence),
       explanation: question.explanation?.trim() || "This line gives the detail needed to choose the correct answer.",
     };
   }
@@ -264,7 +292,11 @@ function getReadingEvidenceHint(passage: ReadingPassageSet, question: ReadingPro
   }
 
   return {
-    evidence: shortestDecisiveEvidencePhrase(best.sentence, question, explicitKeyword),
+    evidence: passageSafeEvidence(
+      passage.passage,
+      shortestDecisiveEvidencePhrase(best.sentence, question, explicitKeyword),
+      best.sentence,
+    ),
     keyword: explicitKeyword || inferEvidenceKeyword(best.sentence),
     explanation: question.explanation?.trim() || "This line gives the detail needed to choose the correct answer.",
   };
@@ -272,6 +304,26 @@ function getReadingEvidenceHint(passage: ReadingPassageSet, question: ReadingPro
 
 function readingExposureIds(passages: ReadingPassageSet[]) {
   return passages.flatMap(practiceRepeatKeys);
+}
+
+function readingAttemptRepeatIds(attempts: Awaited<ReturnType<typeof getAttemptMemory>>) {
+  const attemptTopicKey = (attempt: Awaited<ReturnType<typeof getAttemptMemory>>[number]) => compactEvidenceText([
+    attempt.question,
+    attempt.expectedAnswer,
+    attempt.context ?? '',
+  ].join(' ')).slice(0, 220);
+
+  return attempts
+    .filter((attempt) => attempt.type === 'reading')
+    .flatMap((attempt) => {
+      const topicKey = attemptTopicKey(attempt);
+      return [
+        attempt.promptId,
+        `q:${topicKey}`,
+        `topic:${topicKey}`,
+      ];
+    })
+    .filter((id) => id.length > 3);
 }
 
 export default function APReadingSession() {
@@ -339,10 +391,11 @@ export default function APReadingSession() {
       setLangCode(code);
       setReady(false);
 
-      const [savedItems, stats, recentPromptIds, storedGenerated, sessions] = await Promise.all([
+      const [savedItems, stats, recentPromptIds, attemptMemory, storedGenerated, sessions] = await Promise.all([
         getSavedItems(),
         getStatsForLanguage(code),
         getRecentPromptIds(code, 'reading'),
+        getAttemptMemory(code),
         loadGeneratedPracticeCache<ReadingPassageSet>('reading', code),
         getSessionHistory(),
       ]);
@@ -402,17 +455,21 @@ export default function APReadingSession() {
       }
 
       const allowedDifficulties = allowedReadingDifficultiesForBoost(level, boost);
+      const blockedReadingIds = Array.from(new Set([
+        ...recentPromptIds,
+        ...readingAttemptRepeatIds(attemptMemory),
+      ]));
       let cachedPassages = selectPracticeItems([
         ...getGeneratedPracticeMemory<ReadingPassageSet>('reading', code),
         ...storedGenerated,
-      ], passageCount, recentPromptIds)
+      ], passageCount, blockedReadingIds)
         .filter((passage) => allowedDifficulties.has(passage.difficulty));
       if (!savedPassage && cachedPassages.length < passageCount) {
         const refreshed = await refreshGeneratedPracticeCache({
           mode: 'reading',
           languageCode: code,
           totalXP: stats.totalXP,
-          recentPromptIds,
+          recentPromptIds: blockedReadingIds,
           count: Math.max(3, passageCount),
           targetSkills: [
             ...routeTargetSkills,
@@ -427,7 +484,7 @@ export default function APReadingSession() {
           ...(refreshed as ReadingPassageSet[]),
           ...getGeneratedPracticeMemory<ReadingPassageSet>('reading', code),
           ...storedGenerated,
-        ], passageCount, recentPromptIds)
+        ], passageCount, blockedReadingIds)
           .filter((passage) => allowedDifficulties.has(passage.difficulty));
       }
       const localPassages = getRandomReadingSets(
@@ -435,7 +492,7 @@ export default function APReadingSession() {
         passageCount,
         stats.totalXP,
         [
-          ...recentPromptIds,
+          ...blockedReadingIds,
           ...cachedPassages.map((passage) => passage.id),
         ],
       );
@@ -444,12 +501,9 @@ export default function APReadingSession() {
         : selectPracticeItems([
           ...cachedPassages,
           ...localPassages,
-          ...getRandomReadingSets(code, passageCount, 0, []),
-        ], passageCount, recentPromptIds, cachedPassages);
+        ], passageCount, blockedReadingIds, cachedPassages);
       const emergencyPassages = uniquePracticeItems([
         ...localPassages,
-        ...getRandomReadingSets(code, passageCount, stats.totalXP, []),
-        ...getRandomReadingSets(code, passageCount, 0, []),
       ]);
       const difficultySafeEmergencyPassages = emergencyPassages
         .filter((passage) => allowedDifficulties.has(passage.difficulty));
@@ -487,7 +541,7 @@ export default function APReadingSession() {
           languageCode: code,
           totalXP: stats.totalXP,
           recentPromptIds: [
-            ...recentPromptIds,
+            ...blockedReadingIds,
             ...readingExposureIds(nextPassages),
           ],
           count: Math.max(3, passageCount),
@@ -1324,6 +1378,8 @@ const styles = StyleSheet.create({
   },
   passageEvidenceHighlight: {
     backgroundColor: '#CFF5ED',
+    borderWidth: 1,
+    borderColor: '#7EE2D5',
   },
   questionMeta: {
     gap: 4,

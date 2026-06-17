@@ -3,7 +3,7 @@ import { spanishSpeakingPrompts, spanishListeningQuestions } from './spanish';
 import type { SpeakingPrompt, ListeningQuestion, ReadingPassageSet } from './types';
 import type { LanguageCode } from '@/constants/languages';
 import { difficultyRank, getPlayerLevel } from '@/utils/progression';
-import { hasPracticeRepeatOverlap, practiceRepeatKeys, type PracticeRepeatItem } from '@/utils/practiceRepeatKeys';
+import { hasPracticeRepeatOverlap, type PracticeRepeatItem } from '@/utils/practiceRepeatKeys';
 
 export type { SpeakingPrompt, ListeningQuestion, ReadingPassageSet, PracticeItem } from './types';
 
@@ -122,6 +122,5 @@ export function getRandomReadingSets(
   const all = getReadingSets(langCode);
   const excluded = new Set(excludedIds);
   const fresh = all.filter((set) => isFreshLocalItem(set, excluded));
-  const pool = fresh.length > 0 ? fresh : all.filter((set) => !practiceRepeatKeys(set).some((key) => excluded.has(key)));
-  return progressiveSubset(pool.length > 0 ? pool : all, count, totalXP, excludedIds);
+  return progressiveSubset(fresh, count, totalXP, excludedIds);
 }

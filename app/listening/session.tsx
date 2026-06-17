@@ -256,12 +256,9 @@ export default function ListeningSession() {
       const selectedQuestions = selectPracticeItems([
         ...cachedQuestions,
         ...fallbackQuestions,
-        ...getRandomListeningQuestions(code, sessionLength, 0, []),
       ], sessionLength, recentPromptIds, cachedQuestions);
       const emergencyQuestions = uniquePracticeItems([
         ...fallbackQuestions,
-        ...getRandomListeningQuestions(code, sessionLength, stats.totalXP, []),
-        ...getRandomListeningQuestions(code, sessionLength, 0, []),
       ]).slice(0, sessionLength);
       const nextQuestions = selectedQuestions.length > 0 ? selectedQuestions : emergencyQuestions;
 

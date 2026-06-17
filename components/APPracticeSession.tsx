@@ -50,7 +50,7 @@ import {
   refreshGeneratedPracticeCache,
   selectPracticeItems,
 } from '@/utils/practiceContentQueue';
-import { practiceRepeatKeys } from '@/utils/practiceRepeatKeys';
+import { hasPracticeRepeatOverlap, practiceRepeatKeys } from '@/utils/practiceRepeatKeys';
 import { parseTargetSkillsParam } from '@/utils/targetSkills';
 import {
   applyChallengeBoostXP,
@@ -328,8 +328,8 @@ export function APPracticeSession({ mode }: { mode: APPracticeMode }) {
         ...localSets,
       ], 1, recentPromptIds, cachedSets);
       const localBackup = localSets.find(
-        (candidate) => !practiceRepeatKeys(candidate).some((key) => recentPromptIds.includes(key)),
-      ) ?? localSets[0] ?? null;
+        (candidate) => !hasPracticeRepeatOverlap(candidate, recentPromptIds),
+      ) ?? null;
       const nextSet = selectedSets[0] ?? localBackup ?? cachedSets[0] ?? null;
       if (!nextSet) {
         setHydratedProgress(null);
