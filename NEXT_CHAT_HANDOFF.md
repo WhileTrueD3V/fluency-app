@@ -55,6 +55,13 @@ Latest quality audit work:
 - Daily plan prompt now requires exactly one AP rubric string, and the server normalizes combined rubric strings before the app sees them.
 - OpenAI Responses JSON mode is enabled for server calls to reduce malformed JSON failures.
 - AP conversation/texting content is now normalized server-side so prompts/model answers are app-shaped string arrays and mode matches the request.
+- June 17, 2026 generated reading quality fix:
+  - A production AI reading item asked `次のバスは何時ですか？` with choices like `10時/11時/12時/1時`, but the passage never gave the bus time. It also showed an English situation/context line above the Japanese passage.
+  - `server/grading-server.mjs` now deterministically rejects generated reading sets when learner-visible reading context is English metadata, learner-visible reading fields are not Japanese, the passage is too thin, evidence is missing/not in the passage, evidence is too broad, keyword is missing/not grounded, or time/date/detail answers are not actually present in the passage/evidence.
+  - The reading generation prompt no longer asks for English answer choices. It now requires Japanese title/context/passage/questions/choices and exact short Japanese evidence phrases.
+  - `utils/aiContent.ts` now has a client-side generated-reading usability gate too, so bad AI reading items are filtered out even if an older/weird server response slips through.
+  - `scripts/ai-quality-review.mjs` now includes the exact bad bus-time regression case and a valid grounded reading case.
+  - Offline verification passed: `node --check server/grading-server.mjs`, `node --check scripts/ai-quality-review.mjs`, `npm run audit:ai-quality`, `npx tsc --noEmit`, `npm run validate:launch`, and `npm run build:web`.
 - If AP prompt-set normalization produces zero valid sets, the server returns `502 AI_CONTENT_SCHEMA` so the app can fall back instead of accepting an empty AI result.
 - A targeted two-call verification passed for `conversation` and `texting`: both returned 2 valid app-shaped AP prompt sets, costing about `0.0896` cents total.
 - Latest tiny live QA attempt on June 10, 2026 used an isolated server on port `8799`, added only about `0.0838` cents, and stopped early because the content repeat guard caught a repeated club/schedule-change reading frame. That was a useful failure, not a runaway spend.

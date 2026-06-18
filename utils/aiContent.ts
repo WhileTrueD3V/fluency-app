@@ -77,6 +77,65 @@ function isReadingQuestion(value: unknown): value is ReadingPromptQuestion {
     && (value.explanation === undefined || typeof value.explanation === 'string');
 }
 
+const JAPANESE_TEXT_PATTERN = /[\u3040-\u30ff\u3400-\u9fff]/;
+const ENGLISH_WORD_PATTERN = /[A-Za-z]{3,}/;
+const TIME_OR_DATE_PATTERN = /(?:\d{1,2}|[一二三四五六七八九十百]+)\s*(?:時|分|時間|日|月|曜日)|午前|午後|半|来週|今週|明日|今日|昨日|あさって|週末/g;
+const DETAIL_TIME_QUESTION_PATTERN = /何時|いつ|何日|何曜日|何月|何分|何時間|どのくらい|何時ごろ|when|what time|which day|how long/i;
+
+function containsJapanese(value: unknown) {
+  return JAPANESE_TEXT_PATTERN.test(String(value ?? ''));
+}
+
+function compactJapaneseText(value: unknown) {
+  return String(value ?? '')
+    .normalize('NFKC')
+    .replace(/[\s\u3000]/g, '')
+    .replace(/[「」『』（）()［\]\[\],，、。.!！？?：:；;・･〜~"“”'’]/g, '');
+}
+
+function includesLooseJapanese(haystack: unknown, needle: unknown) {
+  const compactHaystack = compactJapaneseText(haystack);
+  const compactNeedle = compactJapaneseText(needle);
+  return Boolean(compactNeedle) && compactHaystack.includes(compactNeedle);
+}
+
+function timeOrDateTokens(value: unknown) {
+  return Array.from(String(value ?? '').matchAll(TIME_OR_DATE_PATTERN), (match) => match[0].replace(/\s/g, ''));
+}
+
+function isEnglishOnlyMetadata(value: unknown) {
+  const text = String(value ?? '').trim();
+  if (!text) return false;
+  return !containsJapanese(text) && ENGLISH_WORD_PATTERN.test(text);
+}
+
+function isUsableAIReadingSet(item: ReadingPassageSet) {
+  if (!containsJapanese(item.passage) || !containsJapanese(item.title)) return false;
+  if (isEnglishOnlyMetadata(item.context)) return false;
+  if (compactJapaneseText(item.passage).length < 40) return false;
+
+  return item.questions.every((question) => {
+    const correctChoice = question.choices[question.correctIndex];
+    const evidence = question.evidence?.trim() ?? '';
+    const keyword = question.keyword?.trim() ?? '';
+    if (!containsJapanese(question.question)) return false;
+    if (question.choices.every(isEnglishOnlyMetadata)) return false;
+    if (!evidence || !containsJapanese(evidence) || !includesLooseJapanese(item.passage, evidence)) return false;
+    if (compactJapaneseText(evidence).length > 32 || /。.+。/.test(evidence) || /。/.test(evidence.replace(/。$/, ''))) return false;
+    if (!keyword || !containsJapanese(keyword)) return false;
+    if (!includesLooseJapanese(evidence, keyword) && !includesLooseJapanese(item.passage, keyword)) return false;
+
+    const passageTimeTokens = timeOrDateTokens(`${item.passage} ${evidence}`);
+    const correctTimeTokens = timeOrDateTokens(correctChoice);
+    const looksLikeTimeDetailQuestion = DETAIL_TIME_QUESTION_PATTERN.test(question.question) || correctTimeTokens.length > 0;
+    if (looksLikeTimeDetailQuestion && correctTimeTokens.length > 0) {
+      return correctTimeTokens.some((token) => passageTimeTokens.includes(token));
+    }
+    if (DETAIL_TIME_QUESTION_PATTERN.test(question.question) && passageTimeTokens.length === 0) return false;
+    return true;
+  });
+}
+
 export function parseAIListeningQuestions(items: AIPracticeItem[]): ListeningQuestion[] {
   return items.filter((item): item is ListeningQuestion => {
     if (!isRecord(item)) return false;
@@ -114,7 +173,7 @@ export function parseAISpeakingPrompts(items: AIPracticeItem[]): SpeakingPrompt[
 export function parseAIReadingSets(items: AIPracticeItem[]): ReadingPassageSet[] {
   return items.filter((item): item is ReadingPassageSet => {
     if (!isRecord(item)) return false;
-    return typeof item.id === 'string'
+    const isReadingSet = typeof item.id === 'string'
       && item.id.startsWith('ai-')
       && typeof item.passage === 'string'
       && typeof item.translation === 'string'
@@ -126,6 +185,7 @@ export function parseAIReadingSets(items: AIPracticeItem[]): ReadingPassageSet[]
       && item.questions.every(isReadingQuestion)
       && isDifficulty(item.difficulty)
       && typeof item.category === 'string';
+    return isReadingSet && isUsableAIReadingSet(item as ReadingPassageSet);
   });
 }
 

@@ -4,6 +4,7 @@ import {
   contentGenerationPrompt,
   contentRetryPayload,
   dailyPlanPrompt,
+  generatedReadingContentIssues,
   generatedContentNoveltyIssues,
   gradingPrompt,
   speakingReviewPrompt,
@@ -364,6 +365,54 @@ function evaluateOfflinePromptSafety() {
     mode: 'texting',
     profile: sampleProfile,
   });
+  const ungroundedBusReadingIssues = generatedReadingContentIssues({
+    items: [{
+      id: 'ai-ja-reading-bad-bus-time',
+      title: '学校の帰りのバスについて',
+      context: 'School commute. The student is asking about the next bus time after experiencing a crowded bus.',
+      passage: '今日は、学校の帰りにバスに乗りました。バスはとても混んでいて、座ることができませんでした。次のバスは何時ですか？',
+      translation: 'Today I rode the bus home from school. It was very crowded and I could not sit. What time is the next bus?',
+      difficulty: 'beginner',
+      category: 'reading',
+      questions: [{
+        id: 'ai-ja-reading-bad-bus-time-q1',
+        question: '次のバスは何時ですか？',
+        choices: ['10時', '11時', '12時', '1時'],
+        correctIndex: 2,
+        evidence: '次のバスは何時ですか？',
+        keyword: '何時',
+        explanation: 'The passage asks about the time.',
+      }],
+    }],
+  });
+  const validReadingIssues = generatedReadingContentIssues({
+    items: [{
+      id: 'ai-ja-reading-valid-library',
+      title: '放課後の予定',
+      context: '放課後のメッセージ',
+      passage: '今日は図書館で日本語の宿題をしてから、六時ごろ家に帰ります。もし時間があったら、そのあとで電話します。',
+      translation: 'Today I will do Japanese homework at the library, then go home around six. If I have time, I will call after that.',
+      difficulty: 'beginner',
+      category: 'reading',
+      questions: [{
+        id: 'ai-ja-reading-valid-library-q1',
+        question: '書き手は最初に何をしますか？',
+        choices: ['家に帰る', '友だちに電話する', '図書館で宿題をする', 'バスに乗る'],
+        correctIndex: 2,
+        evidence: '図書館で日本語の宿題をしてから',
+        keyword: 'してから',
+        explanation: 'The cue してから shows the first action.',
+      }, {
+        id: 'ai-ja-reading-valid-library-q2',
+        question: '何時ごろ家に帰りますか？',
+        choices: ['四時ごろ', '五時ごろ', '六時ごろ', '七時ごろ'],
+        correctIndex: 2,
+        evidence: '六時ごろ家に帰ります',
+        keyword: '六時ごろ',
+        explanation: 'The passage gives the return time.',
+      }],
+    }],
+  });
   const retryPayload = contentRetryPayload(contentPayloads.find((payload) => payload.mode === 'texting'), [
     'Repeated recent late-arrival plus what-to-bring task frame.',
   ]);
@@ -378,6 +427,8 @@ function evaluateOfflinePromptSafety() {
     { label: 'duplicate late/bring task is rejected offline', pass: duplicateIssues.length > 0 },
     { label: 'blocked late/bring surface terms are rejected offline', pass: blockedSurfaceIssues.length > 0 },
     { label: 'fresh peer practice is not rejected offline', pass: freshIssues.length === 0 },
+    { label: 'ungrounded bus-time reading is rejected offline', pass: ungroundedBusReadingIssues.length > 0 },
+    { label: 'valid grounded reading is accepted offline', pass: validReadingIssues.length === 0 },
     { label: 'novelty retry prompt clearly changes scenario and answer logic', pass: /NOVELTY RETRY/.test(retryPrompt) && /different situation, source type, speech act, answer logic/.test(retryPrompt) },
   ];
 }

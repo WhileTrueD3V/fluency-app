@@ -289,6 +289,120 @@ function generatedContentNoveltyIssues(body, payload) {
   return issues;
 }
 
+const JAPANESE_TEXT_PATTERN = /[\u3040-\u30ff\u3400-\u9fff]/;
+const ENGLISH_WORD_PATTERN = /[A-Za-z]{3,}/;
+const TIME_OR_DATE_PATTERN = /(?:\d{1,2}|[一二三四五六七八九十百]+)\s*(?:時|分|時間|日|月|曜日)|午前|午後|半|来週|今週|明日|今日|昨日|あさって|週末/g;
+const DETAIL_TIME_QUESTION_PATTERN = /何時|いつ|何日|何曜日|何月|何分|何時間|どのくらい|何時ごろ|when|what time|which day|how long/i;
+
+function containsJapanese(value) {
+  return JAPANESE_TEXT_PATTERN.test(String(value ?? ''));
+}
+
+function compactJapaneseText(value) {
+  return String(value ?? '')
+    .normalize('NFKC')
+    .replace(/[\s\u3000]/g, '')
+    .replace(/[「」『』（）()［\]\[\],，、。.!！？?：:；;・･〜~"“”'’]/g, '');
+}
+
+function includesLooseJapanese(haystack, needle) {
+  const compactHaystack = compactJapaneseText(haystack);
+  const compactNeedle = compactJapaneseText(needle);
+  return Boolean(compactNeedle) && compactHaystack.includes(compactNeedle);
+}
+
+function timeOrDateTokens(value) {
+  return Array.from(String(value ?? '').matchAll(TIME_OR_DATE_PATTERN), (match) => match[0].replace(/\s/g, ''));
+}
+
+function isEnglishOnlyMetadata(value) {
+  const text = String(value ?? '').trim();
+  if (!text) return false;
+  return !containsJapanese(text) && ENGLISH_WORD_PATTERN.test(text);
+}
+
+function generatedReadingContentIssues(body) {
+  const items = Array.isArray(body?.items) ? body.items : [];
+  const issues = [];
+  if (items.length === 0) return issues;
+
+  items.forEach((item, itemIndex) => {
+    const label = `reading item ${itemIndex + 1}`;
+    const passage = typeof item?.passage === 'string' ? item.passage : '';
+    const context = typeof item?.context === 'string' ? item.context : '';
+    const title = typeof item?.title === 'string' ? item.title : '';
+    const questions = Array.isArray(item?.questions) ? item.questions : [];
+
+    if (!containsJapanese(passage)) {
+      issues.push(`${label}: passage is not Japanese.`);
+    }
+    if (!containsJapanese(title)) {
+      issues.push(`${label}: title must be learner-visible Japanese, not English metadata.`);
+    }
+    if (isEnglishOnlyMetadata(context)) {
+      issues.push(`${label}: context is English metadata instead of learner-visible Japanese.`);
+    }
+    if (compactJapaneseText(passage).length < 40) {
+      issues.push(`${label}: passage is too thin for an AP reading check.`);
+    }
+
+    questions.forEach((question, questionIndex) => {
+      const qLabel = `${label} question ${questionIndex + 1}`;
+      const questionText = typeof question?.question === 'string' ? question.question : '';
+      const choices = Array.isArray(question?.choices) ? question.choices : [];
+      const correctIndex = Number(question?.correctIndex);
+      const correctChoice = choices[correctIndex];
+      const evidence = typeof question?.evidence === 'string' ? question.evidence.trim() : '';
+      const keyword = typeof question?.keyword === 'string' ? question.keyword.trim() : '';
+
+      if (!containsJapanese(questionText)) {
+        issues.push(`${qLabel}: question must be in Japanese.`);
+      }
+      if (choices.length !== 4 || choices.some((choice) => typeof choice !== 'string' || !choice.trim())) {
+        issues.push(`${qLabel}: choices must be four non-empty strings.`);
+      }
+      if (choices.length === 4 && choices.every((choice) => isEnglishOnlyMetadata(choice))) {
+        issues.push(`${qLabel}: answer choices must not be English-only.`);
+      }
+      if (!Number.isInteger(correctIndex) || correctIndex < 0 || correctIndex >= choices.length) {
+        issues.push(`${qLabel}: correctIndex is invalid.`);
+      }
+
+      if (!evidence || !containsJapanese(evidence)) {
+        issues.push(`${qLabel}: evidence must be a short Japanese phrase copied from the passage.`);
+      } else if (!includesLooseJapanese(passage, evidence)) {
+        issues.push(`${qLabel}: evidence does not appear in the passage.`);
+      } else {
+        const compactEvidence = compactJapaneseText(evidence);
+        if (compactEvidence.length > 32 || /。.+。/.test(evidence) || /。/.test(evidence.replace(/。$/, ''))) {
+          issues.push(`${qLabel}: evidence is too broad; use only the critical answer phrase.`);
+        }
+      }
+
+      if (!keyword || !containsJapanese(keyword)) {
+        issues.push(`${qLabel}: keyword must be a decisive Japanese cue.`);
+      } else if (evidence && !includesLooseJapanese(evidence, keyword) && !includesLooseJapanese(passage, keyword)) {
+        issues.push(`${qLabel}: keyword is not in the passage evidence.`);
+      }
+
+      const passageTimeTokens = timeOrDateTokens(`${passage} ${evidence}`);
+      const correctTimeTokens = timeOrDateTokens(correctChoice ?? '');
+      const looksLikeTimeDetailQuestion = DETAIL_TIME_QUESTION_PATTERN.test(questionText) || correctTimeTokens.length > 0;
+      if (looksLikeTimeDetailQuestion && correctTimeTokens.length > 0) {
+        const grounded = correctTimeTokens.some((token) => passageTimeTokens.includes(token));
+        if (!grounded) {
+          issues.push(`${qLabel}: correct time/date answer is not grounded in the passage.`);
+        }
+      }
+      if (DETAIL_TIME_QUESTION_PATTERN.test(questionText) && passageTimeTokens.length === 0) {
+        issues.push(`${qLabel}: asks for a time/date/detail that the passage never gives.`);
+      }
+    });
+  });
+
+  return issues;
+}
+
 function contentRetryPayload(payload, noveltyIssues) {
   const targetSkills = Array.isArray(payload?.targetSkills) ? payload.targetSkills : [];
   return {
@@ -310,6 +424,12 @@ function contentSchemaIssue(body, payload) {
     && (!Array.isArray(body?.items) || body.items.length === 0)
   ) {
     return 'Generated AP prompt sets did not match the app schema.';
+  }
+  if (payload?.mode === 'reading') {
+    const readingIssues = generatedReadingContentIssues(body);
+    if (readingIssues.length > 0) {
+      return `Generated reading set was not usable: ${readingIssues.join(' | ')}`;
+    }
   }
   return null;
 }
@@ -915,10 +1035,13 @@ function contentGenerationPrompt(payload) {
       ? [
         'Return ReadingPassageSet objects with exactly: id, passage, translation, context, title, questions, difficulty, category.',
         'Each questions item must have id, question, choices, correctIndex, evidence, keyword, explanation.',
+        'All learner-visible reading content must be Japanese: title, context, passage, question, and answer choices. Do not include English situation labels or English metadata above the passage.',
         'For each reading question, evidence must be the shortest exact Japanese phrase from the passage that proves the correct answer. Prefer 3-12 Japanese words/phrases or one short clause, not a whole sentence, unless the full sentence is truly required.',
         'For request/recommend/intent questions, evidence must isolate the request/intent clause itself, e.g. できれば交換していただきたいです, not the setup or reason before it.',
         'keyword must be the decisive Japanese cue word or phrase inside that evidence. explanation must briefly explain in English why that cue proves the answer.',
-        'Each passage should have 2-4 questions, and choices must contain exactly 4 English answer choices.',
+        'Every correct answer must be directly recoverable from the passage. If a question asks for a time, date, place, reason, request, recommendation, or next action, that exact clue must appear in the passage and in evidence.',
+        'Never ask a question whose answer is not stated or strongly implied by the passage. For example, do not ask 次のバスは何時ですか if the passage never gives the next bus time.',
+        'Each passage should have 2-4 questions, and choices must contain exactly 4 concise Japanese answer choices.',
         'Harder levels should use longer passages, harder kanji, denser information, and less beginner-style wording or furigana-style support.',
         'Do not include inline furigana, romaji, bracketed readings, or parenthetical pronunciation in the passage. The app handles readings and should only show them for non-AP kanji.',
         'Beginner passages should use shorter sentences and familiar AP/basic kanji. Intermediate and advanced passages should gradually increase kanji density, inference load, and information density based on user level.',
@@ -1419,6 +1542,7 @@ export {
   estimateCostCents,
   estimateTokens,
   generateContentWithOneNoveltyRetry,
+  generatedReadingContentIssues,
   generatedContentNoveltyIssues,
   gradingPrompt,
   handleRequest,
