@@ -1448,6 +1448,9 @@ async function handleRequest(req, res) {
             },
           ])),
         },
+        qualityGuards: {
+          readingGrounding: '2026-06-17-v1',
+        },
       });
       return;
     }

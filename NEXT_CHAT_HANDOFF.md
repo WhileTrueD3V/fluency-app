@@ -61,6 +61,7 @@ Latest quality audit work:
   - The reading generation prompt no longer asks for English answer choices. It now requires Japanese title/context/passage/questions/choices and exact short Japanese evidence phrases.
   - `utils/aiContent.ts` now has a client-side generated-reading usability gate too, so bad AI reading items are filtered out even if an older/weird server response slips through.
   - `scripts/ai-quality-review.mjs` now includes the exact bad bus-time regression case and a valid grounded reading case.
+  - `/api/health` now exposes `qualityGuards.readingGrounding: "2026-06-17-v1"` so production can prove this server-side guard is deployed without spending credits.
   - Offline verification passed: `node --check server/grading-server.mjs`, `node --check scripts/ai-quality-review.mjs`, `npm run audit:ai-quality`, `npx tsc --noEmit`, `npm run validate:launch`, and `npm run build:web`.
 - If AP prompt-set normalization produces zero valid sets, the server returns `502 AI_CONTENT_SCHEMA` so the app can fall back instead of accepting an empty AI result.
 - A targeted two-call verification passed for `conversation` and `texting`: both returned 2 valid app-shaped AP prompt sets, costing about `0.0896` cents total.
