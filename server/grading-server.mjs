@@ -1321,6 +1321,7 @@ async function handleRequest(req, res) {
               creditCost: config.creditCost,
               maxOutputTokens: config.maxOutputTokens,
               openAIModel: config.openAIModel,
+              timeoutMs: config.timeoutMs ?? AI_PROVIDER_TIMEOUT_MS,
             },
           ])),
         },
