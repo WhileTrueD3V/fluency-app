@@ -221,7 +221,7 @@ export function DrillLoadingState({
           <View style={styles.cacheCopy}>
             <Text style={styles.cacheNoteKicker}>Fresh work warmup</Text>
             <Text style={styles.cacheNoteText}>
-              First builds can take a short warmup. Kibbo will stop safely and return the credit if fresh work stalls.
+              First fresh builds can take about a minute. Kibbo stops safely and returns the credit if the set still stalls.
             </Text>
           </View>
         </View>

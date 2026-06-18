@@ -121,6 +121,12 @@ The GitHub repo was connected to Vercel and deployed on June 10, 2026.
   - `costControls.exposeCosts: false`
 - Frontend root returned HTTP 200.
 - A tiny live daily-plan generation call returned HTTP 200, confirming deployed AI generation works. That sampler exposed a repeated school-notice/change frame, so `server/grading-server.mjs` was tightened with broader daily-plan novelty guidance and a broader deterministic daily-plan sanitizer. Latest production deploy after that fix is ready and `/api/health` still passes.
+- June 17, 2026 production drill-start failure diagnosis:
+  - The user hit `Fresh set stalled / This drill could not open cleanly` on `https://kibbo-language-master.vercel.app`.
+  - Production `/api/health` was healthy and using the right OpenAI/cost-cap setup, but production root was serving an older JS bundle (`entry-fbb21b...`) while local export had newer bundles.
+  - A real timeout mismatch was also found: the client gave generated content `40s`, while the server could make one novelty retry and each provider attempt could wait up to `35s`. That meant a valid fresh build could be declared stalled while the server was still finishing.
+  - Fix applied locally: generated-content client waits are now `65s`; server content provider attempts are capped separately at `22s` through `AI_CONTENT_PROVIDER_TIMEOUT_MS`; loading copy now says first fresh builds can take about a minute and credits are returned if the set still stalls.
+  - Verification before push: `node --check server/grading-server.mjs`, `npx tsc --noEmit`, `npm run build:web`, `npm run validate:launch`, and `npm run audit:ai-quality` passed. No live generation calls were made for this fix.
 
 Important: Only Production env vars were added through the CLI. Preview/Development Vercel env setup hit a Vercel agent-mode branch prompt and can be filled later in the dashboard if preview deployments need AI access. The teacher beta production URL works with the configured Production env vars.
 

@@ -22,6 +22,10 @@ const configuredProviderTimeoutMs = Number(process.env.AI_PROVIDER_TIMEOUT_MS ??
 const AI_PROVIDER_TIMEOUT_MS = Number.isFinite(configuredProviderTimeoutMs)
   ? Math.max(5000, configuredProviderTimeoutMs)
   : 35000;
+const configuredContentProviderTimeoutMs = Number(process.env.AI_CONTENT_PROVIDER_TIMEOUT_MS ?? 22000);
+const AI_CONTENT_PROVIDER_TIMEOUT_MS = Number.isFinite(configuredContentProviderTimeoutMs)
+  ? Math.max(5000, configuredContentProviderTimeoutMs)
+  : 22000;
 const EXPOSE_AI_COSTS = process.env.EXPOSE_AI_COSTS === '1';
 const FEEDBACK_LOG_PATH = process.env.KIBBO_FEEDBACK_LOG_PATH ?? path.resolve('data/feedback-submissions.jsonl');
 const AI_USAGE_LOG_PATH = process.env.KIBBO_AI_USAGE_LOG_PATH ?? path.resolve('data/ai-usage.jsonl');
@@ -44,6 +48,7 @@ const TASK_CONFIGS = {
     creditCost: 1,
     maxOutputTokens: Number(process.env.AI_CONTENT_MAX_OUTPUT_TOKENS ?? 2600),
     openAIModel: OPENAI_CONTENT_MODEL,
+    timeoutMs: AI_CONTENT_PROVIDER_TIMEOUT_MS,
   },
   speakingReview: {
     creditCost: 1,
@@ -1093,6 +1098,7 @@ async function completeJsonWithGemini(prompt, config, task) {
         },
       }),
     },
+    config.timeoutMs,
   );
 
   if (!response.ok) return { ok: false, status: response.status, body: json };
@@ -1137,7 +1143,7 @@ async function completeJsonWithOpenAI(prompt, config, task) {
         },
       },
     }),
-  });
+  }, config.timeoutMs);
 
   if (!response.ok) {
     return { ok: false, status: response.status, body: json };
@@ -1186,7 +1192,7 @@ async function completeJsonWithAnthropic(prompt, config, task) {
         max_tokens: config.maxOutputTokens,
         messages: [{ role: 'user', content: prompt }],
       }),
-    });
+    }, config.timeoutMs);
 
     if (response.ok) {
       const outputText = extractAnthropicOutputText(json);

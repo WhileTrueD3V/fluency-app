@@ -55,7 +55,7 @@ const generatedMemoryCache: PracticeCache = {
   texting: {},
 };
 
-const FOREGROUND_GENERATED_CONTENT_TIMEOUT_MS = 40000;
+const FOREGROUND_GENERATED_CONTENT_TIMEOUT_MS = 65000;
 const BACKGROUND_PREWARM_CONTENT_TIMEOUT_MS = 9000;
 
 const DEFAULT_TARGET_SKILLS: Record<AIPracticeMode, string[]> = {

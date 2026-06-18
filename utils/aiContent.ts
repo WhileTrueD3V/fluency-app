@@ -150,7 +150,7 @@ export function parseAIAPPromptSets(items: AIPracticeItem[], mode: 'conversation
   });
 }
 
-const GENERATED_CONTENT_TIMEOUT_MS = 40000;
+const GENERATED_CONTENT_TIMEOUT_MS = 65000;
 
 export async function generatePracticeContent(
   request: AIContentRequest,
