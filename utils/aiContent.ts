@@ -109,7 +109,7 @@ function isEnglishOnlyMetadata(value: unknown) {
   return !containsJapanese(text) && ENGLISH_WORD_PATTERN.test(text);
 }
 
-function isUsableAIReadingSet(item: ReadingPassageSet) {
+export function isUsableAIReadingSet(item: ReadingPassageSet) {
   if (!containsJapanese(item.passage) || !containsJapanese(item.title)) return false;
   if (isEnglishOnlyMetadata(item.context)) return false;
   if (compactJapaneseText(item.passage).length < 40) return false;

@@ -183,8 +183,12 @@ export async function loadGeneratedPracticeCache<T extends GeneratedPromptItem>(
   languageCode: LanguageCode,
 ): Promise<T[]> {
   const stored = await getGeneratedPromptCache<T>(languageCode, mode);
-  if (stored.length > 0) setGeneratedPracticeMemory(mode, languageCode, stored);
-  return stored;
+  const parsed = parseGeneratedItems(mode, stored as GeneratedPromptItem[]) as T[];
+  if (parsed.length !== stored.length) {
+    await setGeneratedPromptCache(languageCode, mode, parsed);
+  }
+  setGeneratedPracticeMemory(mode, languageCode, parsed);
+  return parsed;
 }
 
 function parseGeneratedItems(

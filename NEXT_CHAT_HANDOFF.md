@@ -769,7 +769,30 @@ Verification after this pass:
 - Browser smoke loaded `http://127.0.0.1:8083/?fresh=timeout-guard-final` with meaningful Kibbo content and no framework overlay.
 - Browser smoke loaded `http://127.0.0.1:8083/listening/session?languageCode=ja&fresh=timeout-guard-final`; after several seconds it showed the recovery surface with no framework overlay or relevant console errors.
 
-## Latest Reading Evidence / Repeat Audit - June 17, 2026
+## Latest Production Reading Cache Fix - June 17, 2026
+
+The user hit the exact bad generated reading drill again on production: a school-bus passage asking `次のバスは何時ですか？` even though the passage never states the next bus time. The key clue was that it loaded instantly, with no AI wait. That means it was not a new AI response; it was stale generated/session cache from before the quality guard.
+
+Fix applied in this latest pass:
+
+- `utils/aiContent.ts` exports `isUsableAIReadingSet`.
+- `utils/practiceContentQueue.ts` now parses and filters persisted generated prompt cache through the same mode parser used for fresh AI responses. Bad generated cache entries are purged with `setGeneratedPromptCache`.
+- `app/ap/reading.tsx` now validates restored reading drill session content before displaying it. Old bad `ai-` reading sessions, and old generated-looking readings with Japanese titles but non-`ja-rd-` ids, must pass `isUsableAIReadingSet` or they are ignored.
+- This specifically targets generated/cached AI reading content. It does not wipe the local fallback reading bank, which currently still uses English context/question/choice text in `data/japanese.ts`.
+
+Verification in this pass:
+
+- `npm run audit:ai-quality` passed, including the exact ungrounded bus-time regression.
+- `npx tsc --noEmit` passed.
+- `npm run validate:launch` passed with the existing bundle-id warning.
+- `npm run build:web` passed and exported `dist/_expo/static/js/web/entry-d578a5909e49511c83d376515841c14a.js`.
+- No live paid AI calls were made.
+
+Important production note:
+
+- After pushing, poll production until the bundle changes and then ask the user to hard refresh or clear site data if they still see the same stale drill. The code now refuses bad restored content, but a browser tab still running an older deployed bundle can keep showing it until it reloads the new JS.
+
+## Prior Reading Evidence / Repeat Audit - June 17, 2026
 
 The user reported that furigana appeared after a wrong reading answer, but the decisive passage phrase was not visibly highlighted, and the local `Rain delay notice` prompt repeated repeatedly. Fixes applied:
 

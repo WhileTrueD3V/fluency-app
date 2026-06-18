@@ -32,6 +32,7 @@ import { DrillAccents, tint } from '@/constants/drillAccents';
 import { getLanguage, type LanguageCode } from '@/constants/languages';
 import { getRandomReadingSets, getReadingSetById } from '@/data';
 import type { ReadingPassageSet, ReadingPromptQuestion } from '@/data/types';
+import { isUsableAIReadingSet } from '@/utils/aiContent';
 import { haptics } from '@/utils/haptics';
 import {
   getGeneratedPracticeMemory,
@@ -76,6 +77,7 @@ import {
 } from '@/utils/challengeBoost';
 
 const DEFAULT_PASSAGE_COUNT = 3;
+const JAPANESE_TEXT_PATTERN = /[\u3040-\u30ff\u3400-\u9fff]/;
 
 const INACTIVE_CHALLENGE_BOOST: ChallengeBoostState = {
   active: false,
@@ -326,6 +328,15 @@ function readingAttemptRepeatIds(attempts: Awaited<ReturnType<typeof getAttemptM
     .filter((id) => id.length > 3);
 }
 
+function isRestorableReadingPassage(passage: ReadingPassageSet) {
+  const looksGenerated = passage.id.startsWith('ai-') || (!passage.id.startsWith('ja-rd-') && JAPANESE_TEXT_PATTERN.test(passage.title));
+  return !looksGenerated || isUsableAIReadingSet(passage);
+}
+
+function usableReadingPassages(passages: ReadingPassageSet[]) {
+  return passages.filter(isRestorableReadingPassage);
+}
+
 export default function APReadingSession() {
   const router = useRouter();
   const { width, height } = useWindowDimensions();
@@ -411,7 +422,8 @@ export default function APReadingSession() {
         )
         : INACTIVE_CHALLENGE_BOOST;
       setChallengeBoost(boost);
-      const storedSessionPassages = savedPassage ? [] : await getDrillSessionContent<ReadingPassageSet>(code, 'reading', sessionId);
+      const rawStoredSessionPassages = savedPassage ? [] : await getDrillSessionContent<ReadingPassageSet>(code, 'reading', sessionId);
+      const storedSessionPassages = usableReadingPassages(rawStoredSessionPassages);
       if (storedSessionPassages.length > 0) {
         const storedProgress = await getDrillSessionProgress<{
           currentPassageIndex?: number;
@@ -459,10 +471,10 @@ export default function APReadingSession() {
         ...recentPromptIds,
         ...readingAttemptRepeatIds(attemptMemory),
       ]));
-      let cachedPassages = selectPracticeItems([
+      let cachedPassages = selectPracticeItems(usableReadingPassages([
         ...getGeneratedPracticeMemory<ReadingPassageSet>('reading', code),
         ...storedGenerated,
-      ], passageCount, blockedReadingIds)
+      ]), passageCount, blockedReadingIds)
         .filter((passage) => allowedDifficulties.has(passage.difficulty));
       if (!savedPassage && cachedPassages.length < passageCount) {
         const refreshed = await refreshGeneratedPracticeCache({
@@ -480,11 +492,11 @@ export default function APReadingSession() {
           ],
         });
         if (cancelled) return;
-        cachedPassages = selectPracticeItems([
+        cachedPassages = selectPracticeItems(usableReadingPassages([
           ...(refreshed as ReadingPassageSet[]),
           ...getGeneratedPracticeMemory<ReadingPassageSet>('reading', code),
           ...storedGenerated,
-        ], passageCount, blockedReadingIds)
+        ]), passageCount, blockedReadingIds)
           .filter((passage) => allowedDifficulties.has(passage.difficulty));
       }
       const localPassages = getRandomReadingSets(
