@@ -328,8 +328,6 @@ export default function ListeningSession() {
     correctCount,
     currentPlayCount,
     canPlayCurrentAudio,
-    playbackRate,
-    cyclePlaybackRate,
     playAudio,
     stopAudio,
     submitAnswer,
@@ -472,13 +470,6 @@ export default function ListeningSession() {
       playAudio();
     }
   };
-
-  const handleSpeedToggle = () => {
-    haptics.impact('light');
-    cyclePlaybackRate();
-  };
-
-  const playbackRateLabel = `${playbackRate.toFixed(2)}x`;
 
   if (!ready) {
     return (
@@ -675,16 +666,6 @@ export default function ListeningSession() {
                     <View style={styles.audioMetaRow}>
                       <Text style={[styles.audioMetaText, drillCompact && styles.audioMetaTextCompact, isTight && styles.audioMetaTextTight]}>{state.isPlaying ? 'Playing' : canPlayCurrentAudio ? 'Ready' : 'Limit reached'}</Text>
                       <View style={styles.audioMetaRight}>
-                        {isTight && (
-                          <TouchableOpacity
-                            onPress={handleSpeedToggle}
-                            activeOpacity={0.78}
-                            style={styles.audioSpeedBtn}
-                            accessibilityLabel={`Playback speed ${playbackRateLabel}. Tap to change speed.`}
-                          >
-                            <Text style={styles.audioSpeedText}>{playbackRateLabel}</Text>
-                          </TouchableOpacity>
-                        )}
                         <Text style={[styles.audioMetaText, drillCompact && styles.audioMetaTextCompact, isTight && styles.audioMetaTextTight]}>{Math.min(currentPlayCount, 2)}/2 plays</Text>
                       </View>
                     </View>
@@ -799,22 +780,6 @@ export default function ListeningSession() {
                   <Text style={styles.sideStatValue}>{state.streak}</Text>
                   <Text style={styles.sideStatLabel}>Streak</Text>
                 </View>
-              </View>
-              <View style={[styles.audioControlRow, isCompact && styles.audioControlRowCompact]}>
-                <View
-                  style={[styles.audioChipActive, isCompact && styles.audioChipActiveCompact]}
-                  accessibilityLabel={`Current playback speed: ${playbackRateLabel}`}
-                >
-                  <Text style={styles.audioChipActiveText}>Speed</Text>
-                </View>
-                <TouchableOpacity
-                  onPress={handleSpeedToggle}
-                  activeOpacity={0.78}
-                  style={[styles.audioChip, isCompact && styles.audioChipCompact]}
-                  accessibilityLabel={`Playback speed ${playbackRateLabel}. Tap to change speed.`}
-                >
-                  <Text style={styles.audioChipText}>{playbackRateLabel}</Text>
-                </TouchableOpacity>
               </View>
               {!isCompact && (
                 <Text style={styles.audioLimitText}>Listen up to 2 times. Choose the answer from what you hear.</Text>
@@ -1038,20 +1003,6 @@ const styles = StyleSheet.create({
     letterSpacing: 1.1,
     textTransform: 'uppercase',
   },
-  tightSpeedBtn: {
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: Colors.surface,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-  },
-  tightSpeedText: {
-    color: Colors.textSub,
-    fontSize: 12,
-    lineHeight: 14,
-    fontWeight: '900',
-  },
   audioCard: {
     backgroundColor: '#F4F7F9',
     borderRadius: 22,
@@ -1148,20 +1099,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
-  audioSpeedBtn: {
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: Colors.surface,
-    paddingHorizontal: 9,
-    paddingVertical: 5,
-  },
-  audioSpeedText: {
-    color: Colors.textSub,
-    fontSize: 11,
-    lineHeight: 13,
-    fontWeight: '900',
-  },
   audioMetaText: {
     color: Colors.textMuted,
     fontSize: 12,
@@ -1173,47 +1110,6 @@ const styles = StyleSheet.create({
   audioMetaTextTight: {
     fontSize: 10,
     lineHeight: 12,
-  },
-  audioControlRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-  audioControlRowCompact: {
-    gap: 8,
-    paddingTop: 10,
-  },
-  audioChipActive: {
-    borderRadius: 999,
-    backgroundColor: DrillAccents.listening,
-    paddingHorizontal: 18,
-    paddingVertical: 9,
-  },
-  audioChipActiveCompact: {
-    paddingHorizontal: 13,
-    paddingVertical: 7,
-  },
-  audioChip: {
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: Colors.surface,
-    paddingHorizontal: 18,
-    paddingVertical: 9,
-  },
-  audioChipCompact: {
-    paddingHorizontal: 13,
-    paddingVertical: 7,
-  },
-  audioChipActiveText: {
-    color: Colors.onPrimary,
-    fontSize: 13,
-    fontWeight: '900',
-  },
-  audioChipText: {
-    color: Colors.textSub,
-    fontSize: 13,
-    fontWeight: '800',
   },
   audioLimitText: {
     color: '#64748B',

@@ -40,19 +40,7 @@ export interface ListeningSessionState {
   audioError: string | null;
 }
 
-type PlaybackRate = 0.75 | 1 | 1.25;
-
-function getNextPlaybackRate(rate: PlaybackRate): PlaybackRate {
-  if (rate === 0.75) return 1;
-  if (rate === 1) return 1.25;
-  return 0.75;
-}
-
-function getPlaybackSpeedLabel(rate: PlaybackRate) {
-  if (rate === 0.75) return 'Slow';
-  if (rate === 1.25) return 'Fast';
-  return 'Normal';
-}
+type PlaybackRate = 1;
 
 function speakText(text: string, language: string, rate: PlaybackRate): Promise<void> {
   if (Platform.OS === 'web') {
@@ -145,7 +133,7 @@ export function useListeningSession(questions: ListeningQuestion[], ttsLocale: s
 
   const ttsRef = useRef<boolean>(false);
   const playbackRunRef = useRef(0);
-  const [playbackRate, setPlaybackRate] = useState<PlaybackRate>(1);
+  const playbackRate: PlaybackRate = 1;
 
   useEffect(() => {
     return () => {
@@ -247,10 +235,6 @@ export function useListeningSession(questions: ListeningQuestion[], ttsLocale: s
     }
   }, [currentPlayCount, currentQuestion, playbackRate, state.currentIndex, ttsLocale]);
 
-  const cyclePlaybackRate = useCallback(() => {
-    setPlaybackRate((rate) => getNextPlaybackRate(rate));
-  }, []);
-
   const stopAudio = useCallback(() => {
     playbackRunRef.current += 1;
     stopSpeech();
@@ -342,9 +326,6 @@ export function useListeningSession(questions: ListeningQuestion[], ttsLocale: s
     accuracyPct,
     currentPlayCount,
     canPlayCurrentAudio,
-    playbackRate,
-    playbackSpeedLabel: getPlaybackSpeedLabel(playbackRate),
-    cyclePlaybackRate,
     playAudio,
     stopAudio,
     submitAnswer,

@@ -2004,8 +2004,10 @@ function CoachLearningHome({
                         mobile && styles.todayPlanStartMobile,
                         hovered && styles.todayPlanStartHover,
                       ]}>
-                        <Text style={[styles.todayPlanStartText, dense && styles.todayPlanStartTextDense, mobile && styles.todayPlanStartTextMobile]}>Start</Text>
-                        <NudgeChevronRight active={hovered} size={dense ? 15 : 17} color={mobile ? Colors.ink : Colors.onPrimary} strokeWidth={2.9} />
+                        {!mobile && (
+                          <Text style={[styles.todayPlanStartText, dense && styles.todayPlanStartTextDense]}>Start</Text>
+                        )}
+                        <NudgeChevronRight active={hovered} size={mobile ? 18 : dense ? 15 : 17} color={mobile ? Colors.textSub : Colors.onPrimary} strokeWidth={2.9} />
                       </View>
                     </>
                   )}
@@ -4361,14 +4363,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
   },
   todayPlanStartMobile: {
-    minHeight: 32,
-    borderRadius: 12,
-    backgroundColor: '#EEF3F7',
+    width: 36,
+    minHeight: 36,
+    borderRadius: 15,
+    backgroundColor: '#F6FAFD',
     borderWidth: 1,
     borderColor: '#D7E2EC',
-    borderBottomColor: '#C9D6E2',
-    borderBottomWidth: 3,
-    paddingHorizontal: 10,
+    borderBottomColor: '#DCE6EF',
+    borderBottomWidth: 2,
+    paddingHorizontal: 0,
   },
   todayPlanStartActive: {
     backgroundColor: '#FFFFFF',

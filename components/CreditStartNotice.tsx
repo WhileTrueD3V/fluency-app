@@ -44,6 +44,9 @@ export function CreditStartNotice({
   const allowance = plan?.creditAllowance ?? 0;
   const hasEnough = Boolean(usage && plan && creditsRemaining >= cost);
   const remainingLabel = `${pluralizeCredits(creditsRemaining)} available`;
+  const compactTitle = hasEnough ? `Use ${pluralizeCredits(cost)}?` : 'Need more credits';
+  const compactSubtitle = hasEnough ? title : `${remainingLabel}. Upgrade to keep generating AP practice.`;
+  const startLabel = isCompact ? 'Start' : `Start for ${pluralizeCredits(cost)}`;
   const allowanceLabel = plan
     ? plan.creditCadence === 'starter'
       ? `${pluralizeCredits(allowance)} starter balance`
@@ -100,41 +103,49 @@ export function CreditStartNotice({
         <View
           style={[
             styles.card,
-            isCompact && styles.cardCompact,
             isTight && styles.cardTight,
+            isCompact && styles.cardCompact,
             {
-              maxHeight: Math.max(320, height - (isTight ? 28 : isCompact ? 72 : 56)),
+              maxHeight: Math.max(320, height - (isCompact ? 36 : isTight ? 28 : 56)),
             },
           ]}
         >
           <Text style={styles.bgGlyph}>点</Text>
 
-          <View style={[styles.topRow, isCompact && styles.topRowCompact, isTight && styles.topRowTight]}>
-            <View style={[styles.kickerPill, isCompact && styles.kickerPillCompact, isTight && styles.kickerPillTight]}>
+          <View style={[styles.topRow, isTight && styles.topRowTight, isCompact && styles.topRowCompact]}>
+            <View style={[styles.kickerPill, isTight && styles.kickerPillTight, isCompact && styles.kickerPillCompact]}>
               <StarIcon size={isTight ? 13 : 15} color={Colors.primary} strokeWidth={2.2} />
               <Text style={[styles.kicker, isTight && styles.kickerTight]}>Credit check</Text>
             </View>
-            <TouchableOpacity onPress={onClose} style={[styles.close, isCompact && styles.closeCompact, isTight && styles.closeTight]} accessibilityLabel="Close credit check">
+            {isCompact && (
+              <View style={styles.mobileCostPill}>
+                <TrophyIcon size={14} color={Colors.gold} strokeWidth={2.35} />
+                <Text style={styles.mobileCostText}>{pluralizeCredits(cost)}</Text>
+              </View>
+            )}
+            <TouchableOpacity onPress={onClose} style={[styles.close, isTight && styles.closeTight, isCompact && styles.closeCompact]} accessibilityLabel="Close credit check">
               <XIcon size={isTight ? 16 : 18} color={Colors.textMuted} strokeWidth={2.2} />
             </TouchableOpacity>
           </View>
 
-          <View style={[styles.heroRow, isCompact && styles.heroRowCompact, isTight && styles.heroRowTight]}>
-            <View style={[styles.creditOrb, isTight && styles.creditOrbTight, !hasEnough && styles.creditOrbLow]}>
-              <Text style={[styles.creditValue, isTight && styles.creditValueTight]}>{cost}</Text>
-              <Text style={[styles.creditLabel, isTight && styles.creditLabelTight]}>{cost === 1 ? 'credit' : 'credits'}</Text>
-            </View>
+          <View style={[styles.heroRow, isTight && styles.heroRowTight, isCompact && styles.heroRowCompact]}>
+            {!isCompact && (
+              <View style={[styles.creditOrb, isTight && styles.creditOrbTight, !hasEnough && styles.creditOrbLow]}>
+                <Text style={[styles.creditValue, isTight && styles.creditValueTight]}>{cost}</Text>
+                <Text style={[styles.creditLabel, isTight && styles.creditLabelTight]}>{cost === 1 ? 'credit' : 'credits'}</Text>
+              </View>
+            )}
             <View style={styles.heroCopy}>
-              <Text style={[styles.title, isCompact && styles.titleCompact, isTight && styles.titleTight]} numberOfLines={isTight ? 2 : undefined}>
-                {title}
+              <Text style={[styles.title, isTight && styles.titleTight, isCompact && styles.titleCompact]} numberOfLines={isTight ? 2 : undefined}>
+                {isCompact ? compactTitle : title}
               </Text>
-              <Text style={[styles.subtitle, isCompact && styles.subtitleCompact, isTight && styles.subtitleTight]} numberOfLines={isTight ? 2 : undefined}>
-                {isTight ? 'Generated AP practice from your rubric profile.' : subtitle ?? 'Kibbo will generate this AP Japanese coach task from your rubric profile.'}
+              <Text style={[styles.subtitle, isTight && styles.subtitleTight, isCompact && styles.subtitleCompact]} numberOfLines={isTight ? 2 : undefined}>
+                {isCompact ? compactSubtitle : isTight ? 'Generated AP practice from your rubric profile.' : subtitle ?? 'Kibbo will generate this AP Japanese coach task from your rubric profile.'}
               </Text>
             </View>
           </View>
 
-          <View style={[styles.balanceBox, isTight && styles.balanceBoxTight, !hasEnough && styles.balanceBoxLow]}>
+          <View style={[styles.balanceBox, isTight && styles.balanceBoxTight, isCompact && styles.balanceBoxCompact, !hasEnough && styles.balanceBoxLow]}>
             <View style={[styles.balanceIcon, isTight && styles.balanceIconTight]}>
               {hasEnough ? (
                 <CheckIcon size={isTight ? 15 : 18} color={Colors.secondary} strokeWidth={2.6} />
@@ -144,7 +155,7 @@ export function CreditStartNotice({
             </View>
             <View style={styles.balanceCopy}>
               <Text style={[styles.balanceTitle, isTight && styles.balanceTitleTight]}>{hasEnough ? remainingLabel : 'Not enough credits'}</Text>
-              <Text style={[styles.balanceText, isTight && styles.balanceTextTight]} numberOfLines={isTight ? 1 : undefined}>
+              <Text style={[styles.balanceText, isTight && styles.balanceTextTight, isCompact && styles.balanceTextCompact]} numberOfLines={isCompact || isTight ? 1 : undefined}>
                 {hasEnough
                   ? `${plan?.name ?? 'Starter'} plan · ${allowanceLabel}`
                   : `This costs ${pluralizeCredits(cost)}. ${remainingLabel}. Upgrade to keep generating AP work.`}
@@ -194,11 +205,12 @@ export function CreditStartNotice({
                 style={[
                   styles.primaryBtn,
                   isTight && styles.primaryBtnTight,
+                  isCompact && styles.primaryBtnCompact,
                   buttonHovered && styles.primaryBtnHover,
                   { transform: [{ translateY: buttonShift }, { scale: buttonScale }] },
                 ]}
               >
-                <Text style={[styles.primaryText, isTight && styles.primaryTextTight]}>Start for {pluralizeCredits(cost)}</Text>
+                <Text style={[styles.primaryText, isTight && styles.primaryTextTight]}>{startLabel}</Text>
                 <Animated.View style={{ transform: [{ translateX: arrowOffset }] }}>
                   <ChevronRightIcon size={20} color={Colors.onPrimary} strokeWidth={2.5} />
                 </Animated.View>
@@ -282,6 +294,7 @@ const styles = StyleSheet.create({
   },
   topRowCompact: {
     minHeight: 34,
+    gap: 8,
   },
   topRowTight: {
     minHeight: 32,
@@ -300,7 +313,7 @@ const styles = StyleSheet.create({
   kickerPillCompact: {
     minHeight: 32,
     gap: 7,
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
   },
   kickerPillTight: {
     minHeight: 30,
@@ -317,6 +330,24 @@ const styles = StyleSheet.create({
   kickerTight: {
     fontSize: 10,
     letterSpacing: 3,
+  },
+  mobileCostPill: {
+    minHeight: 31,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#F7D782',
+    backgroundColor: '#FFF8E5',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    paddingHorizontal: 9,
+  },
+  mobileCostText: {
+    color: Colors.text,
+    fontSize: 11,
+    lineHeight: 14,
+    fontWeight: '900',
   },
   close: {
     width: 42,
@@ -345,7 +376,7 @@ const styles = StyleSheet.create({
   },
   heroRowCompact: {
     alignItems: 'center',
-    gap: 12,
+    gap: 0,
   },
   heroRowTight: {
     alignItems: 'center',
@@ -442,6 +473,12 @@ const styles = StyleSheet.create({
     padding: 9,
     gap: 9,
   },
+  balanceBoxCompact: {
+    borderRadius: 16,
+    paddingHorizontal: 10,
+    paddingVertical: 9,
+    gap: 8,
+  },
   balanceBoxLow: {
     backgroundColor: Colors.errorDim,
     borderColor: Colors.primaryGlow,
@@ -482,6 +519,10 @@ const styles = StyleSheet.create({
   },
   balanceTextTight: {
     marginTop: 1,
+    fontSize: 11,
+    lineHeight: 14,
+  },
+  balanceTextCompact: {
     fontSize: 11,
     lineHeight: 14,
   },
@@ -544,6 +585,11 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.22,
     shadowRadius: 18,
     shadowOffset: { width: 0, height: 10 },
+  },
+  primaryBtnCompact: {
+    backgroundColor: Colors.ink,
+    borderBottomColor: '#06101E',
+    shadowColor: Colors.ink,
   },
   primaryBtnTight: {
     minHeight: 48,

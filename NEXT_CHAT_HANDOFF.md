@@ -472,6 +472,11 @@ Shared drill loading:
 Mobile-only pass:
 
 - Important boundary: the latest visual cleanup intentionally targets phone/mobile branches only. The desktop design should remain visually unchanged.
+- June 18, 2026 mobile clarity pass after outside app-builder feedback:
+  - Listening drills no longer expose speed controls (`0.75x`, `1.00x`, `1.25x`). Playback is fixed at normal speed to remove a nonessential decision.
+  - Mobile Home now reduces repeated call-to-action noise: the coach-picked card keeps the one clear `Start` button, while the `Next` daily-plan rows use small arrow cues instead of additional `Start` buttons.
+  - Mobile credit checks are shorter and calmer: no large red credit tile, the cost is a compact pill in the header, the title asks `Use 1 credit?`, and the primary action is simply `Start`.
+  - The change is meant to clarify what is pressable and reduce reading load on phone. A deeper first-run onboarding/direct-task UX pass is still worth doing, but this removes the immediate "too many buttons / too much copy" problem.
 - Home now passes a true `mobile` flag into the learning dashboard instead of treating narrowed desktop and phone as the same thing.
 - Mobile Home was calmed down: the coach-picked action and generated plan panel are lighter warm-white/ice-gray surfaces on phone, with smaller accent use instead of large saturated teal/navy blocks.
 - Mobile Home quick reps now use mostly white tiles with small accent strips and softer shadows, so each drill remains distinct without overwhelming the screen.
