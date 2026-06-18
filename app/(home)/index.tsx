@@ -177,6 +177,38 @@ function targetSkillRouteParams(targetSkills: string[] = []) {
   return encoded ? { targetSkills: encoded } : {};
 }
 
+function compactMobileActionTitle(action: Pick<PlanAction, 'id' | 'title' | 'task' | 'rubric'>) {
+  const title = action.title.trim();
+  const normalized = title.toLowerCase();
+  const direct: Record<string, string> = {
+    'text-chat register repair': 'Text chat repair',
+    'listening accuracy repair': 'Listening repair',
+    'timed response control': 'Speaking control',
+    'run the ap diagnostic': 'Level check',
+    'evidence finder': 'Evidence finder',
+    'conversation repair': 'Conversation',
+    'confirm hotel reservation': 'Hotel confirmation',
+    'hotel reservation details': 'Hotel details',
+    'reservation policy comprehension': 'Policy details',
+    'event eligibility repair': 'Event eligibility',
+    'casual register repair': 'Casual register',
+  };
+
+  if (direct[normalized]) return direct[normalized];
+  if (action.id.includes('conversation') || normalized.includes('conversation')) return 'Conversation';
+  if (action.id.includes('texting') || normalized.includes('text chat') || normalized.includes('register')) return 'Text chat repair';
+  if (action.id.includes('listening') || normalized.includes('listen') || normalized.includes('audio') || normalized.includes('hotel')) return 'Listening';
+  if (action.id.includes('reading') || normalized.includes('evidence') || normalized.includes('reading') || normalized.includes('detail')) return 'Evidence drill';
+  if (action.rubric === 'Delivery') return 'Conversation';
+  if (action.rubric === 'Language use') return 'Text chat';
+  if (action.rubric === 'Task completion') return 'Evidence drill';
+  if (action.rubric === 'Cultural knowledge') return 'Culture';
+
+  const words = title.split(/\s+/).filter(Boolean);
+  if (words.length <= 2 && title.length <= 20) return title;
+  return words.slice(0, 2).join(' ');
+}
+
 function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
 }
@@ -1605,7 +1637,7 @@ function GeneratedShelfActionCard({
           >
             {action.icon}
           </View>
-          <Text style={[styles.generatedShelfModeLabel, dense && styles.generatedShelfModeLabelDense]} numberOfLines={1}>{action.task}</Text>
+          <Text style={[styles.generatedShelfModeLabel, dense && styles.generatedShelfModeLabelDense]} numberOfLines={mobile ? undefined : 1}>{action.task}</Text>
         </>
       )}
       <View
@@ -1685,7 +1717,7 @@ function DenseUtilityActionTile({
       <View style={[styles.generatedShelfIcon, styles.generatedShelfIconDense, styles.denseUtilityIcon, { backgroundColor: tint(accent, mobile ? '16' : '20') }]}>
         {icon}
       </View>
-      <Text style={styles.generatedShelfModeLabelDense} numberOfLines={1}>{label}</Text>
+      <Text style={styles.generatedShelfModeLabelDense} numberOfLines={mobile ? undefined : 1}>{label}</Text>
     </Pressable>
   );
 }
@@ -1747,16 +1779,7 @@ function CoachLearningHome({
   const showPlanHeaderMeta = !mobile;
   const displayActions = dense ? generatedActions.slice(0, 4) : compact ? generatedActions.slice(0, 4) : generatedActions;
   const levelRankTitle = getLevelRankTitle(playerLevel);
-  const primaryActionDisplayTitle = mobile && dense
-    ? ({
-      'Text-chat register repair': 'Text-chat repair',
-      'Listening accuracy repair': 'Listening repair',
-      'Timed response control': 'Speaking control',
-      'Run the AP diagnostic': 'Level check',
-      'Evidence finder': 'Evidence finder',
-      'Conversation repair': 'Conversation',
-    }[primaryAction.title] ?? primaryAction.title)
-    : primaryAction.title;
+  const primaryActionDisplayTitle = mobile ? compactMobileActionTitle(primaryAction) : primaryAction.title;
   const [hoveredGeneratedActionId, setHoveredGeneratedActionId] = useState<string | null>(null);
   const [levelJourneyOpen, setLevelJourneyOpen] = useState(false);
   const animatedProgressWidth = levelProgressAnim.interpolate({
@@ -1889,7 +1912,7 @@ function CoachLearningHome({
               </View>
               <View style={[styles.primaryCoachCopy, compact && styles.primaryCoachCopyCompact]}>
                 <Text style={[styles.primaryCoachCompleteKicker, mobile && styles.primaryCoachCompleteKickerMobile]}>{mobile ? 'Complete' : dense ? 'Complete' : 'Coach-picked complete'}</Text>
-                <Text style={[styles.primaryCoachCompleteTitle, mobile && styles.primaryCoachCompleteTitleMobile]} numberOfLines={compact ? 2 : 1}>{mobile ? primaryActionDisplayTitle : 'Come back tomorrow'}</Text>
+                <Text style={[styles.primaryCoachCompleteTitle, mobile && styles.primaryCoachCompleteTitleMobile]} numberOfLines={mobile ? undefined : compact ? 2 : 1}>{mobile ? primaryActionDisplayTitle : 'Come back tomorrow'}</Text>
                 <Text style={[styles.primaryCoachCompleteReason, mobile && styles.primaryCoachCompleteReasonMobile]} numberOfLines={compact ? 2 : 1}>
                   {mobile ? 'Coach-picked AP work is done.' : 'Kibbo will build a fresh AP Japanese plan from your latest work.'}
                 </Text>
@@ -1916,7 +1939,7 @@ function CoachLearningHome({
                   <View style={[styles.primaryCoachIcon, dense && styles.primaryCoachIconDense, mobile && styles.primaryCoachIconMobile, hovered && styles.primaryCoachIconHover]}>{primaryAction.icon}</View>
                   <View style={[styles.primaryCoachCopy, compact && styles.primaryCoachCopyCompact]}>
                     <Text style={[styles.primaryCoachKicker, dense && styles.primaryCoachKickerDense, mobile && styles.primaryCoachKickerMobile]}>{dense ? 'Start here' : 'Coach-picked first'}</Text>
-                    <Text style={[styles.primaryCoachTitle, dense && styles.primaryCoachTitleDense, mobile && styles.primaryCoachTitleMobile]} numberOfLines={dense ? 1 : compact ? 2 : 1}>
+                    <Text style={[styles.primaryCoachTitle, dense && styles.primaryCoachTitleDense, mobile && styles.primaryCoachTitleMobile]} numberOfLines={mobile ? undefined : dense ? 1 : compact ? 2 : 1}>
                       {dense && primaryAction.id === 'diagnostic' ? 'Level check' : primaryActionDisplayTitle}
                     </Text>
                     {!dense && <Text style={[styles.primaryCoachReason, mobile && styles.primaryCoachReasonMobile]} numberOfLines={compact ? 2 : 1}>{primaryAction.why}</Text>}
@@ -1946,6 +1969,7 @@ function CoachLearningHome({
           <View style={[styles.todayPlanList, dense && styles.todayPlanListDense, mobile && styles.todayPlanListMobile]}>
             {planQueue.map((action) => {
               const isComplete = completedActionIds.has(action.id);
+              const actionDisplayTitle = mobile ? compactMobileActionTitle(action) : action.title;
 
               if (isComplete) {
                 return (
@@ -1953,11 +1977,11 @@ function CoachLearningHome({
                     <View style={[styles.todayPlanCompleteIcon, dense && styles.todayPlanIconDense, mobile && styles.todayPlanIconMobile]}>
                       <CheckIcon size={dense ? 18 : 22} color={Colors.onPrimary} strokeWidth={2.8} />
                     </View>
-                    <View style={styles.todayPlanCopy}>
-                      <Text style={[styles.todayPlanItemTitle, dense && styles.todayPlanItemTitleDense]} numberOfLines={1}>
-                        {action.title}
+                    <View style={[styles.todayPlanCopy, mobile && styles.todayPlanCopyMobile]}>
+                      <Text style={[styles.todayPlanItemTitle, dense && styles.todayPlanItemTitleDense, mobile && styles.todayPlanItemTitleMobile]} numberOfLines={mobile ? undefined : 1}>
+                        {actionDisplayTitle}
                       </Text>
-                      <Text style={[styles.todayPlanItemText, dense && styles.todayPlanItemTextDense]} numberOfLines={1}>
+                      <Text style={[styles.todayPlanItemText, dense && styles.todayPlanItemTextDense, mobile && styles.todayPlanItemTextMobile]} numberOfLines={mobile ? undefined : 1}>
                         {action.rubric}
                       </Text>
                     </View>
@@ -1990,11 +2014,11 @@ function CoachLearningHome({
                       ]}>
                         {action.icon}
                       </View>
-                      <View style={styles.todayPlanCopy}>
-                        <Text style={[styles.todayPlanItemTitle, dense && styles.todayPlanItemTitleDense]} numberOfLines={1}>
-                          {action.title}
+                      <View style={[styles.todayPlanCopy, mobile && styles.todayPlanCopyMobile]}>
+                        <Text style={[styles.todayPlanItemTitle, dense && styles.todayPlanItemTitleDense, mobile && styles.todayPlanItemTitleMobile]} numberOfLines={mobile ? undefined : 1}>
+                          {actionDisplayTitle}
                         </Text>
-                        <Text style={[styles.todayPlanItemText, dense && styles.todayPlanItemTextDense]} numberOfLines={1}>
+                        <Text style={[styles.todayPlanItemText, dense && styles.todayPlanItemTextDense, mobile && styles.todayPlanItemTextMobile]} numberOfLines={mobile ? undefined : 1}>
                           {action.rubric}
                         </Text>
                       </View>
@@ -4232,10 +4256,10 @@ const styles = StyleSheet.create({
     padding: 8,
   },
   todayPlanRowMobile: {
-    minHeight: 50,
+    minHeight: 58,
     borderRadius: 16,
     gap: 8,
-    padding: 7,
+    padding: 8,
   },
   todayPlanRowActive: {
     backgroundColor: Colors.teal,
@@ -4307,6 +4331,9 @@ const styles = StyleSheet.create({
     minWidth: 0,
     gap: 2,
   },
+  todayPlanCopyMobile: {
+    gap: 1,
+  },
   todayPlanRubric: {
     color: Colors.primary,
     fontSize: 10,
@@ -4327,6 +4354,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 19,
   },
+  todayPlanItemTitleMobile: {
+    fontSize: 17,
+    lineHeight: 20,
+  },
   todayPlanItemTitleActive: {
     color: Colors.onPrimary,
   },
@@ -4338,6 +4369,10 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   todayPlanItemTextDense: {
+    fontSize: 10,
+    lineHeight: 13,
+  },
+  todayPlanItemTextMobile: {
     fontSize: 10,
     lineHeight: 13,
   },
@@ -4365,6 +4400,7 @@ const styles = StyleSheet.create({
   todayPlanStartMobile: {
     width: 36,
     minHeight: 36,
+    flexShrink: 0,
     borderRadius: 15,
     backgroundColor: '#F6FAFD',
     borderWidth: 1,

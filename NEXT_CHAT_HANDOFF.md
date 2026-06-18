@@ -218,6 +218,20 @@ Important current files:
 - Personalization profile: `utils/personalization.ts`
 - Route target-skill helper: `utils/targetSkills.ts`
 - Storage/credits/attempt memory: `utils/storage.ts`
+
+## Latest Mobile Footer / Label Clarity Fix
+
+June 18, 2026 mobile clarity pass:
+
+- `components/AppFooterTabs.tsx` now treats real mobile web user agents as compact/mobile even when the browser reports an unusual viewport. The footer uses fixed web positioning with `env(safe-area-inset-bottom)` and a high z-index so it stays visible in real phone browsers, not only in the in-app `__mobile-demo` shell.
+- `app/(home)/index.tsx` now uses mobile-specific complete labels for Home actions instead of letting generated titles truncate:
+  - Coach-picked work examples become labels like `Text chat repair`.
+  - Next-plan rows become labels like `Evidence finder` and `Conversation`.
+  - Important Home labels on mobile are allowed to wrap rather than render unfinished words with `...`.
+- Verification after the patch:
+  - Seeded real mobile-web Playwright screenshot at `http://127.0.0.1:8083/?fresh=real-mobile-footer-no-ellipsis-seeded-2` showed footer visible and `dotCount: 0`.
+  - `npx tsc --noEmit` passed.
+  - `npm run build:web` passed.
 - First completion feedback popup: `components/FirstCompletionFeedbackModal.tsx`
 - AI grading/generation server: `server/grading-server.mjs`
 

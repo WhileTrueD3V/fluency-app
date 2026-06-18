@@ -12,11 +12,22 @@ export const DESKTOP_RAIL_NARROW_WIDTH = 104;
 export const DESKTOP_RAIL_NARROW_BREAKPOINT = 1040;
 
 const WEB_FIXED_FOOTER_STYLE = Platform.OS === 'web'
-  ? ({ position: 'fixed', left: 12, right: 12, bottom: 8 } as unknown as ViewStyle)
+  ? ({
+    position: 'fixed',
+    left: 12,
+    right: 12,
+    bottom: 'calc(env(safe-area-inset-bottom, 0px) + 12px)',
+    zIndex: 5000,
+  } as unknown as ViewStyle)
   : null;
 
 export function isCompactWidth(width: number) {
   return width < APP_COMPACT_BREAKPOINT;
+}
+
+function isMobileWebRuntime() {
+  if (Platform.OS !== 'web' || typeof navigator === 'undefined') return false;
+  return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
 }
 
 export function getDesktopRailWidth(width: number) {
@@ -105,7 +116,7 @@ export function FooterTabBar({
   floating?: boolean;
 }) {
   const { width } = useWindowDimensions();
-  const isCompact = isCompactWidth(width);
+  const isCompact = isCompactWidth(width) || isMobileWebRuntime();
 
   return (
     <View style={[styles.bar, isCompact && styles.barCompact, isCompact && floating && styles.barCompactFloating]}>
@@ -189,9 +200,9 @@ export function DesktopSideRail() {
 export function AppFooterTabs() {
   const router = useRouter();
   const pathname = usePathname();
-  const params = useLocalSearchParams<{ hideFooter?: string }>();
+  const params = useLocalSearchParams<{ hideFooter?: string; mobilePreview?: string }>();
   const { width } = useWindowDimensions();
-  const isCompact = isCompactWidth(width);
+  const isCompact = isCompactWidth(width) || isMobileWebRuntime() || params.mobilePreview === '1';
   const [startingLevelProfile, setStartingLevelProfile] = useState<StartingLevelProfile | null | undefined>(undefined);
   const isDrillRoute = useMemo(
     () => DRILL_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`)),
@@ -325,6 +336,7 @@ const styles = StyleSheet.create({
     bottom: 8,
     left: 12,
     right: 12,
+    zIndex: 5000,
     borderRadius: 28,
     overflow: 'hidden',
     backgroundColor: '#FFFFFF',
