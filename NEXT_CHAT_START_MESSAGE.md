@@ -2,7 +2,7 @@ We are working in `/Users/chocolate_god/Documents/Apps/fluency-app`.
 
 Read `NEXT_CHAT_HANDOFF.md` first. It is the latest handoff and overrides older design drift. Only use `PROJECT_HANDOFF.md`, `DESIGN_HANDOFF.md`, and `KIBBO_RESET_HANDOFF.md` as supporting context.
 
-Important: the repo was moved from Downloads to `Documents/Apps`; do not work from the old path. Current branch is `main`, GitHub remote is `https://github.com/WhileTrueD3V/fluency-app.git`, and the latest pushed commit at handoff time is `bb5bd9e Collapse mobile onboarding explainer`.
+Important: the repo was moved from Downloads to `Documents/Apps`; do not work from the old path. Current branch is `main`, GitHub remote is `https://github.com/WhileTrueD3V/fluency-app.git`. The latest app-change commit at handoff time is `bb5bd9e Collapse mobile onboarding explainer`; this starter-message file was updated immediately after that.
 
 Kibbo direction:
 
