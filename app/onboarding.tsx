@@ -24,17 +24,23 @@ import { getLanguageProgressGlyph } from '@/utils/learningSignals';
 const COACH_STEPS = [
   {
     title: 'Read your weak spots',
+    mobileTitle: 'Weak-spot memory',
     text: 'Rubric misses, recent mistakes, and repeated prompt patterns.',
+    mobileText: 'Recent misses guide the plan.',
     icon: <TargetIcon size={20} color={Colors.primary} strokeWidth={2.3} />,
   },
   {
     title: 'Generate today’s work',
+    mobileTitle: 'Daily AP work',
     text: 'Fresh AP-style drills built around level and timing pressure.',
+    mobileText: 'Fresh drills match your level.',
     icon: <FileTextIcon size={20} color={Colors.teal} strokeWidth={2.2} />,
   },
   {
     title: 'Prove it under pressure',
+    mobileTitle: 'Mock readiness',
     text: 'Mini Mock turns progress into a clearer readiness signal.',
+    mobileText: 'Short checks show what is improving.',
     icon: <CheckIcon size={20} color={Colors.gold} strokeWidth={2.8} />,
   },
 ];
@@ -177,7 +183,7 @@ function LanguageCard({
           </View>
         )}
         {!isAvailable && square && (
-          <View pointerEvents="none" style={styles.languageComingSoonOverlay}>
+          <View pointerEvents="none" style={[styles.languageComingSoonOverlay, compact && styles.languageComingSoonOverlayCompact]}>
             <Text style={[styles.languageComingSoonOverlayText, compact && styles.languageComingSoonOverlayTextCompact]}>Coming soon</Text>
           </View>
         )}
@@ -232,6 +238,99 @@ export default function Onboarding() {
     router.replace('/(home)');
   };
 
+  if (compact) {
+    const futureLanguages = LANGUAGES.filter((lang) => lang.code !== 'ja');
+
+    return (
+      <SafeAreaView style={styles.safe}>
+        <KanjiBackdrop variant="home" compact />
+        <ScrollView
+          contentContainerStyle={styles.mobileOnboardingScroll}
+          showsVerticalScrollIndicator={false}
+        >
+          <Animated.View
+            style={[
+              styles.mobileOnboardingContent,
+              { opacity: fade, transform: [{ translateY: rise }] },
+            ]}
+          >
+            <View style={styles.mobileOnboardingTopBar}>
+              <KibboLogo size="md" singleLine />
+              <View style={[styles.editionPill, styles.editionPillCompact]}>
+                <View style={styles.editionDot} />
+                <Text style={[styles.editionText, styles.editionTextCompact]}>AP</Text>
+              </View>
+            </View>
+
+            <Pressable
+              onPress={() => openLanguage('ja')}
+              accessibilityRole="button"
+              accessibilityLabel="Start Japanese AP coach"
+              style={({ hovered, pressed }) => [
+                styles.mobileHeroCourse,
+                hovered && styles.mobileHeroCourseHover,
+                pressed && styles.mobileHeroCoursePressed,
+              ]}
+            >
+              <View style={styles.mobileHeroTop}>
+                <View style={styles.mobileHeroMark}>
+                  <LanguageMark code="ja" size="md" glyph={progressGlyphs.ja} />
+                </View>
+                <View style={styles.mobileHeroCopy}>
+                  <Text style={styles.mobileHeroKicker}>Ultra-personal AP coach</Text>
+                  <Text style={styles.mobileHeroTitle}>Japanese 日本語</Text>
+                  <Text style={styles.mobileHeroSub}>Daily practice built from your weak spots.</Text>
+                </View>
+              </View>
+              <View style={styles.mobileHeroAction}>
+                <Text style={styles.mobileHeroActionText}>Start Japanese coach</Text>
+                <ChevronRightIcon size={22} color={Colors.onPrimary} strokeWidth={2.8} />
+              </View>
+            </Pressable>
+
+            <View style={styles.mobileFutureGrid}>
+              {futureLanguages.map((lang) => (
+                <View key={lang.code} style={styles.mobileFutureCard}>
+                  <View style={styles.mobileFutureBadge}>
+                    <Text style={styles.mobileFutureBadgeText}>Coming soon</Text>
+                  </View>
+                  <View style={styles.mobileFutureMark}>
+                    <LanguageMark code={lang.code as LanguageCode} size="sm" />
+                  </View>
+                  <Text style={styles.mobileFutureName}>{lang.name}</Text>
+                </View>
+              ))}
+            </View>
+
+            <View style={styles.mobileHowPanel}>
+              <Text style={styles.mobileHowKicker}>How Kibbo starts</Text>
+              <Text style={styles.mobileHowTitle}>One plan, rebuilt around you.</Text>
+              <View style={styles.mobileHowSteps}>
+                {COACH_STEPS.map((step, index) => (
+                  <View key={step.title} style={styles.mobileHowStep}>
+                    <View style={styles.mobileHowStepIcon}>{step.icon}</View>
+                    <View style={styles.mobileHowStepCopy}>
+                      <Text style={styles.mobileHowStepTitle}>{index + 1}. {step.mobileTitle}</Text>
+                      <Text style={styles.mobileHowStepText}>{step.mobileText}</Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+              <View style={styles.mobileModeStrip}>
+                {MODE_PILLS.map((pill) => (
+                  <View key={pill.label} style={styles.mobileModePill}>
+                    {pill.icon}
+                    <Text style={styles.mobileModePillText}>{pill.label === 'Text chat' ? 'Texting' : pill.label}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          </Animated.View>
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.safe}>
       <KanjiBackdrop variant="home" compact={compact} />
@@ -250,7 +349,7 @@ export default function Onboarding() {
             <KibboLogo size={compact ? 'md' : 'lg'} singleLine={compact} />
             <View style={[styles.editionPill, compact && styles.editionPillCompact]}>
               <View style={styles.editionDot} />
-              <Text style={styles.editionText}>AP Edition</Text>
+              <Text style={[styles.editionText, compact && styles.editionTextCompact]}>{compact ? 'AP' : 'AP Edition'}</Text>
             </View>
           </View>
 
@@ -272,27 +371,27 @@ export default function Onboarding() {
             <View style={[styles.coachPanel, styles.coachPanelChoice, stacked && styles.coachPanelStacked, compact && styles.coachPanelCompact]}>
               <View style={styles.coachPanelTop}>
                 <Text style={[styles.coachKicker, compact && styles.coachKickerCompact]}>How Kibbo starts</Text>
-                <Text style={[styles.coachTitle, compact && styles.coachTitleCompact]}>One plan, rebuilt around you.</Text>
+                <Text style={[styles.coachTitle, compact && styles.coachTitleCompact]}>{compact ? 'Rebuilt around you.' : 'One plan, rebuilt around you.'}</Text>
               </View>
               <View style={[styles.coachStepList, compact && styles.coachStepListCompact]}>
                 {COACH_STEPS.map((step, index) => (
                   <View key={step.title} style={[styles.coachStep, compact && styles.coachStepCompact]}>
                     <View style={[styles.coachStepIcon, compact && styles.coachStepIconCompact]}>{step.icon}</View>
                     <View style={styles.coachStepCopy}>
-                      <Text style={[styles.coachStepTitle, compact && styles.coachStepTitleCompact]}>{index + 1}. {step.title}</Text>
-                      <Text style={[styles.coachStepText, compact && styles.coachStepTextCompact]}>{step.text}</Text>
+                      <Text style={[styles.coachStepTitle, compact && styles.coachStepTitleCompact]}>{index + 1}. {compact ? step.mobileTitle : step.title}</Text>
+                      <Text style={[styles.coachStepText, compact && styles.coachStepTextCompact]}>{compact ? step.mobileText : step.text}</Text>
                     </View>
                   </View>
                 ))}
               </View>
               <View style={[styles.coachFooter, compact && styles.coachFooterCompact]}>
-                <Text style={[styles.coachFooterText, compact && styles.coachFooterTextCompact]}>Daily plan · Mini Mock ladder · Rubric memory</Text>
+                <Text style={[styles.coachFooterText, compact && styles.coachFooterTextCompact]}>{compact ? 'Daily plan · Mock ladder · Rubric memory' : 'Daily plan · Mini Mock ladder · Rubric memory'}</Text>
               </View>
               <View style={[styles.coachModeStrip, compact && styles.coachModeStripCompact]}>
                 {MODE_PILLS.map((pill) => (
                   <View key={pill.label} style={[styles.coachModePill, compact && styles.coachModePillCompact]}>
                     {pill.icon}
-                    <Text style={[styles.coachModePillText, compact && styles.coachModePillTextCompact]}>{pill.label}</Text>
+                    <Text style={[styles.coachModePillText, compact && styles.coachModePillTextCompact]}>{compact && pill.label === 'Text chat' ? 'Texting' : pill.label}</Text>
                   </View>
                 ))}
               </View>
@@ -317,9 +416,9 @@ const styles = StyleSheet.create({
     paddingBottom: 48,
   },
   scrollCompact: {
-    paddingHorizontal: 14,
-    paddingTop: 12,
-    paddingBottom: 96,
+    paddingHorizontal: 15,
+    paddingTop: 11,
+    paddingBottom: 92,
   },
   content: {
     width: '100%',
@@ -329,7 +428,253 @@ const styles = StyleSheet.create({
   },
   contentCompact: {
     maxWidth: 520,
+    gap: 12,
+  },
+  mobileOnboardingScroll: {
+    flexGrow: 1,
+    paddingHorizontal: 18,
+    paddingTop: 42,
+    paddingBottom: 34,
+  },
+  mobileOnboardingContent: {
+    width: '100%',
+    maxWidth: 430,
+    alignSelf: 'center',
     gap: 14,
+  },
+  mobileOnboardingTopBar: {
+    minHeight: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  mobileHeroCourse: {
+    borderRadius: 30,
+    borderWidth: 1,
+    borderColor: Colors.borderBright,
+    backgroundColor: '#FFFFFFF2',
+    padding: 16,
+    gap: 15,
+    shadowColor: Colors.ink,
+    shadowOpacity: 0.12,
+    shadowRadius: 22,
+    shadowOffset: { width: 0, height: 14 },
+  },
+  mobileHeroCourseHover: {
+    borderColor: '#86DDD6',
+    backgroundColor: '#F7FFFD',
+    shadowOpacity: 0.17,
+  },
+  mobileHeroCoursePressed: {
+    backgroundColor: '#F0FBFA',
+    transform: [{ translateY: 2 }],
+  },
+  mobileHeroTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 13,
+  },
+  mobileHeroMark: {
+    width: 64,
+    height: 64,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: Colors.borderBright,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: Colors.ink,
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 7 },
+  },
+  mobileHeroCopy: {
+    flex: 1,
+    minWidth: 0,
+    gap: 3,
+  },
+  mobileHeroKicker: {
+    color: Colors.primary,
+    fontSize: 10,
+    lineHeight: 13,
+    fontWeight: '900',
+    letterSpacing: 1.7,
+    textTransform: 'uppercase',
+  },
+  mobileHeroTitle: {
+    color: Colors.text,
+    fontSize: 28,
+    lineHeight: 32,
+    fontWeight: '900',
+    letterSpacing: 0,
+  },
+  mobileHeroSub: {
+    color: Colors.textSub,
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '800',
+  },
+  mobileHeroAction: {
+    minHeight: 56,
+    borderRadius: 19,
+    backgroundColor: Colors.ink,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    shadowColor: Colors.ink,
+    shadowOpacity: 0.22,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 9 },
+  },
+  mobileHeroActionText: {
+    color: Colors.onPrimary,
+    fontSize: 17,
+    lineHeight: 22,
+    fontWeight: '900',
+  },
+  mobileFutureGrid: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  mobileFutureCard: {
+    flex: 1,
+    minHeight: 112,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: '#FFFFFFD9',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    padding: 12,
+    overflow: 'hidden',
+  },
+  mobileFutureMark: {
+    width: 50,
+    height: 50,
+    borderRadius: 16,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    opacity: 0.62,
+  },
+  mobileFutureName: {
+    color: Colors.textSub,
+    fontSize: 17,
+    lineHeight: 21,
+    fontWeight: '900',
+    opacity: 0.64,
+  },
+  mobileFutureBadge: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: Colors.borderBright,
+    backgroundColor: '#FFFFFFF2',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    zIndex: 2,
+  },
+  mobileFutureBadgeText: {
+    color: Colors.text,
+    fontSize: 9,
+    lineHeight: 11,
+    fontWeight: '900',
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+  },
+  mobileHowPanel: {
+    borderRadius: 28,
+    borderWidth: 1,
+    borderColor: '#BFEDEA',
+    backgroundColor: '#F6FFFD',
+    padding: 16,
+    gap: 12,
+    shadowColor: Colors.ink,
+    shadowOpacity: 0.08,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 10 },
+  },
+  mobileHowKicker: {
+    color: Colors.teal,
+    fontSize: 11,
+    lineHeight: 14,
+    fontWeight: '900',
+    letterSpacing: 1.8,
+    textTransform: 'uppercase',
+  },
+  mobileHowTitle: {
+    color: Colors.text,
+    fontSize: 27,
+    lineHeight: 31,
+    fontWeight: '900',
+    letterSpacing: 0,
+  },
+  mobileHowSteps: {
+    gap: 8,
+  },
+  mobileHowStep: {
+    minHeight: 64,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: '#FFFFFFE8',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    padding: 10,
+  },
+  mobileHowStepIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 14,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  mobileHowStepCopy: {
+    flex: 1,
+    minWidth: 0,
+    gap: 2,
+  },
+  mobileHowStepTitle: {
+    color: Colors.text,
+    fontSize: 15,
+    lineHeight: 18,
+    fontWeight: '900',
+  },
+  mobileHowStepText: {
+    color: Colors.textSub,
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '800',
+  },
+  mobileModeStrip: {
+    flexDirection: 'row',
+    gap: 7,
+  },
+  mobileModePill: {
+    flex: 1,
+    minHeight: 38,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: '#FFFFFF',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    paddingHorizontal: 7,
+  },
+  mobileModePillText: {
+    color: Colors.text,
+    fontSize: 12,
+    lineHeight: 15,
+    fontWeight: '900',
   },
   topBar: {
     minHeight: 58,
@@ -344,9 +689,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   editionPillCompact: {
-    paddingHorizontal: 12,
+    paddingHorizontal: 13,
     paddingVertical: 8,
-    gap: 7,
+    gap: 8,
   },
   editionPill: {
     alignSelf: 'center',
@@ -377,6 +722,11 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     letterSpacing: 3,
     textTransform: 'uppercase',
+  },
+  editionTextCompact: {
+    fontSize: 12,
+    lineHeight: 15,
+    letterSpacing: 2.4,
   },
   heroGrid: {
     flexDirection: 'row',
@@ -546,9 +896,12 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: '100%',
     flexBasis: 'auto',
-    borderRadius: 26,
-    padding: 16,
-    gap: 13,
+    borderRadius: 24,
+    padding: 18,
+    gap: 12,
+    shadowOpacity: 0.18,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 14 },
   },
   coachPanelTop: {
     gap: 5,
@@ -574,14 +927,14 @@ const styles = StyleSheet.create({
     letterSpacing: 0,
   },
   coachTitleCompact: {
-    fontSize: 28,
-    lineHeight: 31,
+    fontSize: 31,
+    lineHeight: 34,
   },
   coachStepList: {
     gap: 13,
   },
   coachStepListCompact: {
-    gap: 9,
+    gap: 8,
   },
   coachStep: {
     minHeight: 78,
@@ -595,8 +948,8 @@ const styles = StyleSheet.create({
     padding: 11,
   },
   coachStepCompact: {
-    minHeight: 66,
-    borderRadius: 18,
+    minHeight: 58,
+    borderRadius: 17,
     gap: 9,
     padding: 9,
   },
@@ -609,9 +962,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   coachStepIconCompact: {
-    width: 38,
-    height: 38,
-    borderRadius: 14,
+    width: 36,
+    height: 36,
+    borderRadius: 13,
   },
   coachStepCopy: {
     flex: 1,
@@ -635,8 +988,8 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   coachStepTextCompact: {
-    fontSize: 12,
-    lineHeight: 17,
+    fontSize: 11,
+    lineHeight: 15,
   },
   coachFooter: {
     minHeight: 46,
@@ -647,8 +1000,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
   },
   coachFooterCompact: {
-    minHeight: 40,
-    paddingHorizontal: 11,
+    minHeight: 35,
+    paddingHorizontal: 10,
   },
   coachFooterText: {
     color: '#FFFFFFCC',
@@ -658,8 +1011,8 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   coachFooterTextCompact: {
-    fontSize: 12,
-    lineHeight: 16,
+    fontSize: 11,
+    lineHeight: 14,
   },
   coachModeStrip: {
     flexDirection: 'row',
@@ -667,9 +1020,9 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   coachModeStripCompact: {
-    flexWrap: 'wrap',
+    flexWrap: 'nowrap',
     justifyContent: 'center',
-    gap: 7,
+    gap: 6,
   },
   coachModePill: {
     minHeight: 40,
@@ -683,12 +1036,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   coachModePillCompact: {
-    minHeight: 36,
+    minHeight: 34,
     flexGrow: 1,
-    flexBasis: '30%',
+    flexBasis: 0,
     justifyContent: 'center',
-    paddingHorizontal: 9,
-    gap: 6,
+    paddingHorizontal: 8,
+    gap: 5,
   },
   coachModePillText: {
     color: Colors.text,
@@ -697,8 +1050,8 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   coachModePillTextCompact: {
-    fontSize: 12,
-    lineHeight: 15,
+    fontSize: 11,
+    lineHeight: 14,
   },
   languageCardMotion: {
     width: '100%',
@@ -717,7 +1070,7 @@ const styles = StyleSheet.create({
     flexBasis: '31%',
     flexGrow: 0,
     minWidth: 84,
-    maxWidth: 132,
+    maxWidth: 122,
   },
   languageCard: {
     minHeight: 226,
@@ -765,9 +1118,9 @@ const styles = StyleSheet.create({
   languageCardSquareCompact: {
     aspectRatio: 1,
     minHeight: 0,
-    padding: 9,
-    borderRadius: 20,
-    gap: 8,
+    padding: 8,
+    borderRadius: 19,
+    gap: 7,
   },
   languageCardComingSoon: {
     backgroundColor: '#F8FAFC',
@@ -798,9 +1151,9 @@ const styles = StyleSheet.create({
     borderRadius: 26,
   },
   courseImageWrapSquareCompact: {
-    width: 54,
-    height: 54,
-    borderRadius: 17,
+    width: 50,
+    height: 50,
+    borderRadius: 16,
   },
   courseImage: {
     width: '100%',
@@ -901,8 +1254,8 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   languageCardTitleSquareCompact: {
-    fontSize: 15,
-    lineHeight: 18,
+    fontSize: 14,
+    lineHeight: 17,
   },
   languageCardTitleMuted: {
     color: Colors.textSub,
@@ -1088,7 +1441,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'center',
-    gap: 9,
+    gap: 8,
   },
   courseCoachGrid: {
     width: 900,
@@ -1102,14 +1455,19 @@ const styles = StyleSheet.create({
     overflow: 'visible',
   },
   courseCoachGridCompact: {
-    marginTop: 16,
-    gap: 16,
+    marginTop: 8,
+    gap: 12,
   },
   languageComingSoonOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: '#FFFFFF96',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  languageComingSoonOverlayCompact: {
+    backgroundColor: 'transparent',
+    justifyContent: 'flex-start',
+    paddingTop: 7,
   },
   languageComingSoonOverlayText: {
     color: Colors.text,
@@ -1127,11 +1485,11 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   languageComingSoonOverlayTextCompact: {
-    fontSize: 10,
-    lineHeight: 13,
-    letterSpacing: 1,
-    paddingHorizontal: 8,
-    paddingVertical: 5,
+    fontSize: 8,
+    lineHeight: 10,
+    letterSpacing: 0.9,
+    paddingHorizontal: 7,
+    paddingVertical: 4,
   },
   courseCoachGridStacked: {
     width: '100%',

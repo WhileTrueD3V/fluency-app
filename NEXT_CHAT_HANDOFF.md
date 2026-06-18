@@ -845,6 +845,30 @@ Verification after this pass:
 - `npm run validate:launch` passed with the existing bundle-id warning.
 - `npm run audit:ai-quality` passed offline. No live paid AI calls were made; `npm run ai:usage` still showed 48 logged calls / about `4.2491` cents lifetime.
 
+## Mobile Onboarding Redesign / Stale Preview Note - June 18, 2026
+
+The user reported the mobile onboarding screen looked ugly in the mobile demo. The first check showed a stale local preview problem:
+
+- Rebuilt web export produced a newer bundle, but the local preview was still serving an older bundle.
+- Restarted `npm run preview:web` on port `8083` from `/Users/chocolate_god/Documents/Apps/fluency-app`.
+- Confirmed the preview served the rebuilt bundle `entry-1c42ff727319026a29a9147a40aef273.js`.
+- Opened `http://127.0.0.1:8083/__mobile-demo?path=/onboarding&fresh=onboarding-mobile-redesign-final`.
+
+Mobile onboarding now has its own compact layout in `app/onboarding.tsx` instead of squeezing the desktop onboarding:
+
+- Clear top bar with Kibbo logo and compact `AP` pill.
+- One obvious primary Japanese coach card with `Start Japanese coach`.
+- Mandarin and Spanish are quiet future-language tiles with small `Coming soon` badges.
+- Replaced the huge dark desktop-style "How Kibbo starts" panel with a lighter compact mobile explanation panel.
+- Mobile copy avoids unfinished labels/ellipsis-style wording: `Texting`, `Daily AP work`, `Mock readiness`, etc.
+- Desktop onboarding should remain visually unchanged because the new layout returns early only for `width < 720`.
+
+Validation after this pass:
+
+- `npx tsc --noEmit` passed.
+- `npm run build:web` passed.
+- No live AI calls were made.
+
 ## What Is Still Left
 
 The main remaining work is not the core personalization plumbing. It is:
