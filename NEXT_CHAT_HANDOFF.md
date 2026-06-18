@@ -860,6 +860,7 @@ Mobile onboarding now has its own compact layout in `app/onboarding.tsx` instead
 - One obvious primary Japanese coach card with `Start Japanese coach`.
 - Mandarin and Spanish are quiet future-language tiles with small `Coming soon` badges.
 - Replaced the huge dark desktop-style "How Kibbo starts" panel with a lighter compact mobile explanation panel.
+- June 18 follow-up: the mobile explanation panel is now collapsed by default as a tappable `How Kibbo Works` card. Tapping it expands the weak-spot memory, daily AP work, mock readiness, and mode details. Desktop onboarding remains unchanged.
 - Mobile copy avoids unfinished labels/ellipsis-style wording: `Texting`, `Daily AP work`, `Mock readiness`, etc.
 - Desktop onboarding should remain visually unchanged because the new layout returns early only for `width < 720`.
 

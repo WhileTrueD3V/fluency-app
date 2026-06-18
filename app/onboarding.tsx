@@ -199,6 +199,7 @@ export default function Onboarding() {
   const stacked = width < 1080;
   const [progressGlyphs, setProgressGlyphs] = useState<Partial<Record<LanguageCode, string>>>({});
   const [levels, setLevels] = useState<Partial<Record<LanguageCode, number>>>({});
+  const [mobileHowOpen, setMobileHowOpen] = useState(false);
   const fade = useRef(new Animated.Value(0)).current;
   const rise = useRef(new Animated.Value(18)).current;
 
@@ -236,6 +237,11 @@ export default function Onboarding() {
     haptics.impact('medium');
     await savePrefs({ selectedLanguage: code, onboardingComplete: true });
     router.replace('/(home)');
+  };
+
+  const toggleMobileHow = () => {
+    haptics.impact('light');
+    setMobileHowOpen((open) => !open);
   };
 
   if (compact) {
@@ -302,29 +308,55 @@ export default function Onboarding() {
               ))}
             </View>
 
-            <View style={styles.mobileHowPanel}>
-              <Text style={styles.mobileHowKicker}>How Kibbo starts</Text>
-              <Text style={styles.mobileHowTitle}>One plan, rebuilt around you.</Text>
-              <View style={styles.mobileHowSteps}>
-                {COACH_STEPS.map((step, index) => (
-                  <View key={step.title} style={styles.mobileHowStep}>
-                    <View style={styles.mobileHowStepIcon}>{step.icon}</View>
-                    <View style={styles.mobileHowStepCopy}>
-                      <Text style={styles.mobileHowStepTitle}>{index + 1}. {step.mobileTitle}</Text>
-                      <Text style={styles.mobileHowStepText}>{step.mobileText}</Text>
-                    </View>
-                  </View>
-                ))}
+            <Pressable
+              onPress={toggleMobileHow}
+              accessibilityRole="button"
+              accessibilityLabel={mobileHowOpen ? 'Collapse how Kibbo works' : 'Expand how Kibbo works'}
+              accessibilityState={{ expanded: mobileHowOpen }}
+              style={({ hovered, pressed }) => [
+                styles.mobileHowPanel,
+                hovered && styles.mobileHowPanelHover,
+                pressed && styles.mobileHowPanelPressed,
+              ]}
+            >
+              <View style={styles.mobileHowToggle}>
+                <View style={styles.mobileHowHeaderCopy}>
+                  <Text style={styles.mobileHowHeaderKicker}>AP coach logic</Text>
+                  <Text style={styles.mobileHowHeaderTitle}>How Kibbo Works</Text>
+                  <Text style={styles.mobileHowHeaderText}>
+                    {mobileHowOpen ? 'Hide the plan details.' : 'Tap to see how your daily work gets built.'}
+                  </Text>
+                </View>
+                <View style={[styles.mobileHowChevron, mobileHowOpen && styles.mobileHowChevronOpen]}>
+                  <ChevronRightIcon size={22} color={Colors.ink} strokeWidth={2.6} />
+                </View>
               </View>
-              <View style={styles.mobileModeStrip}>
-                {MODE_PILLS.map((pill) => (
-                  <View key={pill.label} style={styles.mobileModePill}>
-                    {pill.icon}
-                    <Text style={styles.mobileModePillText}>{pill.label === 'Text chat' ? 'Texting' : pill.label}</Text>
+
+              {mobileHowOpen && (
+                <View style={styles.mobileHowExpanded}>
+                  <Text style={styles.mobileHowExpandedTitle}>One plan, rebuilt around you.</Text>
+                  <View style={styles.mobileHowSteps}>
+                    {COACH_STEPS.map((step, index) => (
+                      <View key={step.title} style={styles.mobileHowStep}>
+                        <View style={styles.mobileHowStepIcon}>{step.icon}</View>
+                        <View style={styles.mobileHowStepCopy}>
+                          <Text style={styles.mobileHowStepTitle}>{index + 1}. {step.mobileTitle}</Text>
+                          <Text style={styles.mobileHowStepText}>{step.mobileText}</Text>
+                        </View>
+                      </View>
+                    ))}
                   </View>
-                ))}
-              </View>
-            </View>
+                  <View style={styles.mobileModeStrip}>
+                    {MODE_PILLS.map((pill) => (
+                      <View key={pill.label} style={styles.mobileModePill}>
+                        {pill.icon}
+                        <Text style={styles.mobileModePillText}>{pill.label === 'Text chat' ? 'Texting' : pill.label}</Text>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              )}
+            </Pressable>
           </Animated.View>
         </ScrollView>
       </SafeAreaView>
@@ -592,12 +624,86 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#BFEDEA',
     backgroundColor: '#F6FFFD',
-    padding: 16,
-    gap: 12,
+    padding: 15,
+    gap: 13,
     shadowColor: Colors.ink,
     shadowOpacity: 0.08,
     shadowRadius: 18,
     shadowOffset: { width: 0, height: 10 },
+  },
+  mobileHowPanelHover: {
+    borderColor: '#76DAD4',
+    backgroundColor: '#F1FFFC',
+    shadowOpacity: 0.12,
+  },
+  mobileHowPanelPressed: {
+    backgroundColor: '#ECFBF8',
+    transform: [{ translateY: 1 }],
+  },
+  mobileHowToggle: {
+    minHeight: 78,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  mobileHowHeaderCopy: {
+    flex: 1,
+    minWidth: 0,
+    gap: 3,
+  },
+  mobileHowHeaderKicker: {
+    color: Colors.teal,
+    fontSize: 10,
+    lineHeight: 13,
+    fontWeight: '900',
+    letterSpacing: 1.7,
+    textTransform: 'uppercase',
+  },
+  mobileHowHeaderTitle: {
+    color: Colors.text,
+    fontSize: 25,
+    lineHeight: 29,
+    fontWeight: '900',
+    letterSpacing: 0,
+  },
+  mobileHowHeaderText: {
+    color: Colors.textSub,
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '800',
+  },
+  mobileHowChevron: {
+    width: 44,
+    height: 44,
+    borderRadius: 15,
+    borderWidth: 1,
+    borderColor: Colors.borderBright,
+    backgroundColor: '#FFFFFFE8',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: Colors.ink,
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 5 },
+  },
+  mobileHowChevronOpen: {
+    transform: [{ rotate: '90deg' }],
+    borderColor: '#86DDD6',
+    backgroundColor: '#FFFFFF',
+  },
+  mobileHowExpanded: {
+    gap: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#D7F2F0',
+    paddingTop: 13,
+  },
+  mobileHowExpandedTitle: {
+    color: Colors.text,
+    fontSize: 24,
+    lineHeight: 29,
+    fontWeight: '900',
+    letterSpacing: 0,
   },
   mobileHowKicker: {
     color: Colors.teal,
