@@ -520,7 +520,7 @@ export default function APReadingSession() {
       }
 
       setPassages(nextPassages);
-      await saveDrillSessionContent(code, 'reading', sessionId, nextPassages);
+      await saveDrillSessionContent(code, 'reading', sessionId, nextPassages).catch(() => undefined);
       setCurrentPassageIndex(0);
       setCurrentQuestionIndex(0);
       setAnswers([]);

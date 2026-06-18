@@ -339,7 +339,7 @@ export function APPracticeSession({ mode }: { mode: APPracticeMode }) {
       }
       setHydratedProgress(null);
       setPracticeSet(nextSet);
-      await saveDrillSessionContent(code, mode, sessionId, [nextSet]);
+      await saveDrillSessionContent(code, mode, sessionId, [nextSet]).catch(() => undefined);
       setIsLoadingSet(false);
       void recordPromptExposure(code, mode, practiceRepeatKeys(nextSet));
       if (cachedSets.length === 0) {

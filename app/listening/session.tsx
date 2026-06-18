@@ -265,7 +265,7 @@ export default function ListeningSession() {
       setHydratedProgress(null);
       setQuestions(nextQuestions);
       setReady(true);
-      await saveDrillSessionContent(code, 'listening', sessionId, nextQuestions);
+      await saveDrillSessionContent(code, 'listening', sessionId, nextQuestions).catch(() => undefined);
       if (nextQuestions.length > 0) {
         void recordPromptExposure(code, 'listening', nextQuestions.flatMap(practiceRepeatKeys));
       }

@@ -412,7 +412,7 @@ export default function TranslationScreen() {
 
       setHydratedProgress(null);
       setPrompts(nextPrompts);
-      await saveDrillSessionContent(code, 'speaking', sessionId, nextPrompts);
+      await saveDrillSessionContent(code, 'speaking', sessionId, nextPrompts).catch(() => undefined);
       setCurrentIdx(0);
       setIsPromptLoading(false);
       if (nextPrompts.length > 0) {
