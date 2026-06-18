@@ -778,6 +778,7 @@ Fix applied in this latest pass:
 - `utils/aiContent.ts` exports `isUsableAIReadingSet`.
 - `utils/practiceContentQueue.ts` now parses and filters persisted generated prompt cache through the same mode parser used for fresh AI responses. Bad generated cache entries are purged with `setGeneratedPromptCache`.
 - `app/ap/reading.tsx` now validates restored reading drill session content before displaying it. Old bad `ai-` reading sessions, and old generated-looking readings with Japanese titles but non-`ja-rd-` ids, must pass `isUsableAIReadingSet` or they are ignored.
+- `app/ap/reading.tsx` includes a non-visible `testID` marker, `reading-cache-guard-2026-06-17-v2`, so production bundle checks can prove this guard is deployed.
 - This specifically targets generated/cached AI reading content. It does not wipe the local fallback reading bank, which currently still uses English context/question/choice text in `data/japanese.ts`.
 
 Verification in this pass:

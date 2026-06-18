@@ -78,6 +78,7 @@ import {
 
 const DEFAULT_PASSAGE_COUNT = 3;
 const JAPANESE_TEXT_PATTERN = /[\u3040-\u30ff\u3400-\u9fff]/;
+const READING_CACHE_GUARD_VERSION = 'reading-cache-guard-2026-06-17-v2';
 
 const INACTIVE_CHALLENGE_BOOST: ChallengeBoostState = {
   active: false,
@@ -815,7 +816,7 @@ export default function APReadingSession() {
 
   if (!ready) {
     return (
-      <SafeAreaView style={styles.safe}>
+      <SafeAreaView testID={READING_CACHE_GUARD_VERSION} style={styles.safe}>
         <DrillLoadingState mode="reading" />
       </SafeAreaView>
     );
@@ -823,7 +824,7 @@ export default function APReadingSession() {
 
   if (passages.length === 0) {
     return (
-      <SafeAreaView style={styles.safe}>
+      <SafeAreaView testID={READING_CACHE_GUARD_VERSION} style={styles.safe}>
         <DrillLoadRecovery onAction={exitSession} />
       </SafeAreaView>
     );
@@ -833,7 +834,7 @@ export default function APReadingSession() {
     const accuracy = answers.length > 0 ? Math.round((correctCount / answers.length) * 100) : 0;
 
     return (
-      <SafeAreaView style={styles.safe}>
+      <SafeAreaView testID={READING_CACHE_GUARD_VERSION} style={styles.safe}>
         <ScrollView contentContainerStyle={styles.completeScroll}>
           <View style={styles.completeIcon}>
             <TargetIcon size={42} color={accuracy >= 70 ? Colors.success : DrillAccents.reading} strokeWidth={1.8} />
@@ -888,7 +889,7 @@ export default function APReadingSession() {
 
   if (!currentQuestion || !currentPassage) {
     return (
-      <SafeAreaView style={styles.safe}>
+      <SafeAreaView testID={READING_CACHE_GUARD_VERSION} style={styles.safe}>
         <DrillLoadingState
           mode="reading"
           title="Preparing reading round"
@@ -899,7 +900,7 @@ export default function APReadingSession() {
   }
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView testID={READING_CACHE_GUARD_VERSION} style={styles.safe}>
       {drillCompact && <Text style={[styles.bgGlyph, isTight && styles.bgGlyphTight]}>読</Text>}
       {latestAnswer?.isCorrect && (
         <Animated.View
