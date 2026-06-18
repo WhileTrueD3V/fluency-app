@@ -51,7 +51,6 @@ import {
   loadGeneratedPracticeCache,
   refreshGeneratedPracticeCache,
   selectPracticeItems,
-  uniquePracticeItems,
 } from '@/utils/practiceContentQueue';
 import { practiceRepeatKeys } from '@/utils/practiceRepeatKeys';
 import {
@@ -257,18 +256,15 @@ export default function ListeningSession() {
         ...cachedQuestions,
         ...fallbackQuestions,
       ], sessionLength, recentPromptIds, cachedQuestions);
-      const emergencyQuestions = uniquePracticeItems([
-        ...fallbackQuestions,
-      ]).slice(0, sessionLength);
-      const nextQuestions = selectedQuestions.length > 0 ? selectedQuestions : emergencyQuestions;
+      const nextQuestions = selectedQuestions;
 
       setHydratedProgress(null);
-      setQuestions(nextQuestions);
-      setReady(true);
-      await saveDrillSessionContent(code, 'listening', sessionId, nextQuestions).catch(() => undefined);
       if (nextQuestions.length > 0) {
-        void recordPromptExposure(code, 'listening', nextQuestions.flatMap(practiceRepeatKeys));
+        await recordPromptExposure(code, 'listening', nextQuestions.flatMap(practiceRepeatKeys)).catch(() => undefined);
       }
+      setQuestions(nextQuestions);
+      await saveDrillSessionContent(code, 'listening', sessionId, nextQuestions).catch(() => undefined);
+      setReady(true);
       if (cachedQuestions.length < sessionLength) {
         void refreshGeneratedPracticeCache({
           mode: 'listening',

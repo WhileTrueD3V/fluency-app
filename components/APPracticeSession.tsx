@@ -50,7 +50,7 @@ import {
   refreshGeneratedPracticeCache,
   selectPracticeItems,
 } from '@/utils/practiceContentQueue';
-import { hasPracticeRepeatOverlap, practiceRepeatKeys } from '@/utils/practiceRepeatKeys';
+import { practiceRepeatKeys } from '@/utils/practiceRepeatKeys';
 import { parseTargetSkillsParam } from '@/utils/targetSkills';
 import {
   applyChallengeBoostXP,
@@ -327,10 +327,8 @@ export function APPracticeSession({ mode }: { mode: APPracticeMode }) {
         ...cachedSets,
         ...localSets,
       ], 1, recentPromptIds, cachedSets);
-      const localBackup = localSets.find(
-        (candidate) => !hasPracticeRepeatOverlap(candidate, recentPromptIds),
-      ) ?? null;
-      const nextSet = selectedSets[0] ?? localBackup ?? cachedSets[0] ?? null;
+      const localBackup = selectPracticeItems(localSets, 1, recentPromptIds, cachedSets)[0] ?? null;
+      const nextSet = selectedSets[0] ?? localBackup ?? null;
       if (!nextSet) {
         setHydratedProgress(null);
         setPracticeSet(null);
@@ -338,10 +336,10 @@ export function APPracticeSession({ mode }: { mode: APPracticeMode }) {
         return;
       }
       setHydratedProgress(null);
-      setPracticeSet(nextSet);
+      await recordPromptExposure(code, mode, practiceRepeatKeys(nextSet)).catch(() => undefined);
       await saveDrillSessionContent(code, mode, sessionId, [nextSet]).catch(() => undefined);
+      setPracticeSet(nextSet);
       setIsLoadingSet(false);
-      void recordPromptExposure(code, mode, practiceRepeatKeys(nextSet));
       if (cachedSets.length === 0) {
         void refreshGeneratedPracticeCache({
           mode,

@@ -70,6 +70,12 @@ Latest quality audit work:
   - `utils/storage.ts` raised `RECENT_PROMPT_LIMIT` from `240` to `1200`, because each passage records multiple repeat keys and the old cap churned seen passages out too quickly during real QA.
   - `scripts/ai-quality-review.mjs` now includes offline tripwires proving generated selectors refuse stale backfill, local selectors refuse stale backfill, and repeat memory keeps a large QA window.
   - Product tradeoff: if fresh AI content is unavailable and local fresh fallback is exhausted, Kibbo should show the recovery/refund path or a shorter fresh set rather than knowingly serving repeats.
+- June 17, 2026 final repeat leak fix after the user still saw the same generated/static reading passage:
+  - Root cause: individual drill routes still had route-level emergency fallback paths after the shared selector fix. Reading, listening, speaking, and AP conversation/texting could still fall back to local/static or cached content if selected fresh content was empty.
+  - `app/ap/reading.tsx`, `app/listening/session.tsx`, `app/speaking/translation.tsx`, and `components/APPracticeSession.tsx` now refuse those emergency stale backfills. Fresh content can be shorter, or the recovery/refund path can appear, but the route should not knowingly serve repeats.
+  - Fresh-session exposure writes are awaited before opening the generated content, closing a race where a fast restart could begin before repeat memory was saved.
+  - `utils/practiceRepeatKeys.ts` now includes explicit family blockers for the repeated `bus-crowded-next-time` and `rain-game-cancel` frames, so the same situation is blocked even if the generated id or wording changes.
+  - `scripts/ai-quality-review.mjs` now has offline tripwires proving route-level emergency backfills are gone, exposure writes are awaited, and the new repeat-family blockers exist.
 - If AP prompt-set normalization produces zero valid sets, the server returns `502 AI_CONTENT_SCHEMA` so the app can fall back instead of accepting an empty AI result.
 - A targeted two-call verification passed for `conversation` and `texting`: both returned 2 valid app-shaped AP prompt sets, costing about `0.0896` cents total.
 - Latest tiny live QA attempt on June 10, 2026 used an isolated server on port `8799`, added only about `0.0838` cents, and stopped early because the content repeat guard caught a repeated club/schedule-change reading frame. That was a useful failure, not a runaway spend.

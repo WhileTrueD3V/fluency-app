@@ -39,7 +39,6 @@ import {
   loadGeneratedPracticeCache,
   refreshGeneratedPracticeCache,
   selectPracticeItems,
-  uniquePracticeItems,
 } from '@/utils/practiceContentQueue';
 import { practiceRepeatKeys } from '@/utils/practiceRepeatKeys';
 import {
@@ -515,21 +514,10 @@ export default function APReadingSession() {
           ...cachedPassages,
           ...localPassages,
         ], passageCount, blockedReadingIds, cachedPassages);
-      const emergencyPassages = uniquePracticeItems([
-        ...localPassages,
-      ]);
-      const difficultySafeEmergencyPassages = emergencyPassages
-        .filter((passage) => allowedDifficulties.has(passage.difficulty));
-      const nextPassages = savedPassage
-        ? selectedPassages
-        : (selectedPassages.length > 0
-          ? selectedPassages
-          : (difficultySafeEmergencyPassages.length > 0
-            ? difficultySafeEmergencyPassages
-            : emergencyPassages).slice(0, passageCount));
+      const nextPassages = savedPassage ? selectedPassages : selectedPassages;
 
       if (!savedPassage && nextPassages.length > 0) {
-        void recordPromptExposure(code, "reading", readingExposureIds(nextPassages));
+        await recordPromptExposure(code, 'reading', readingExposureIds(nextPassages)).catch(() => undefined);
       }
 
       setPassages(nextPassages);

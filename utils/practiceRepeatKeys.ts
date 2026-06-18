@@ -109,6 +109,12 @@ function practiceFamilyKeys(item: PracticeRepeatItem) {
   if (/(train|platform|station|電車|駅|ホーム).{0,120}(delay|delayed|late|遅れ|遅延|変更)/i.test(text)) {
     add('train-delay');
   }
+  if (/(bus|バス).{0,160}(crowd|crowded|packed|seat|next bus|混ん|座る|座れ|次のバス|何時)|(crowd|crowded|packed|seat|next bus|混ん|座る|座れ|次のバス|何時).{0,160}(bus|バス)/i.test(text)) {
+    add('bus-crowded-next-time');
+  }
+  if (/(rain|raining|雨).{0,160}(game|match|ticket|cancel|postpone|試合|チケット|中止|延期|来週)|(game|match|ticket|cancel|postpone|試合|チケット|中止|延期|来週).{0,160}(rain|raining|雨)/i.test(text)) {
+    add('rain-game-cancel');
+  }
   if (/(cafe|coffee|カフェ|喫茶).{0,120}(study|quiet|勉強|静か)|(study|quiet|勉強|静か).{0,120}(cafe|coffee|カフェ|喫茶)/i.test(text)) {
     add('cafe-study');
   }

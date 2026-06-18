@@ -327,8 +327,13 @@ function evaluateOfflinePromptSafety() {
   };
   const promptText = textFrom(prompts);
   const practiceContentQueueSource = fs.readFileSync(path.resolve('utils/practiceContentQueue.ts'), 'utf8');
+  const practiceRepeatKeysSource = fs.readFileSync(path.resolve('utils/practiceRepeatKeys.ts'), 'utf8');
   const localDataSource = fs.readFileSync(path.resolve('data/index.ts'), 'utf8');
   const storageSource = fs.readFileSync(path.resolve('utils/storage.ts'), 'utf8');
+  const readingRouteSource = fs.readFileSync(path.resolve('app/ap/reading.tsx'), 'utf8');
+  const listeningRouteSource = fs.readFileSync(path.resolve('app/listening/session.tsx'), 'utf8');
+  const speakingRouteSource = fs.readFileSync(path.resolve('app/speaking/translation.tsx'), 'utf8');
+  const apPracticeRouteSource = fs.readFileSync(path.resolve('components/APPracticeSession.tsx'), 'utf8');
   const recentPromptLimit = Number(storageSource.match(/RECENT_PROMPT_LIMIT\s*=\s*(\d+)/)?.[1] ?? 0);
   const duplicateTexting = {
     items: [{
@@ -436,6 +441,9 @@ function evaluateOfflinePromptSafety() {
     { label: 'novelty retry prompt clearly changes scenario and answer logic', pass: /NOVELTY RETRY/.test(retryPrompt) && /different situation, source type, speech act, answer logic/.test(retryPrompt) },
     { label: 'generated selector refuses stale backfill', pass: /filterFreshPracticeItems\(deduped, recentPromptIds, recentItems\)\.slice\(0, count\)/.test(practiceContentQueueSource) && !/const\s+backup\s*=/.test(practiceContentQueueSource) },
     { label: 'local selector refuses stale backfill', pass: !/stalePreferred|staleFallback|shuffledStale/.test(localDataSource) },
+    { label: 'drill routes refuse emergency stale local backfill', pass: !/emergencyPassages/.test(readingRouteSource) && !/emergencyQuestions/.test(listeningRouteSource) && !/emergencyPrompts/.test(speakingRouteSource) && !/cachedSets\[0\]/.test(apPracticeRouteSource) },
+    { label: 'drill routes await exposure writes before opening fresh content', pass: /await recordPromptExposure/.test(readingRouteSource) && /await recordPromptExposure/.test(listeningRouteSource) && /await recordPromptExposure/.test(speakingRouteSource) && /await recordPromptExposure/.test(apPracticeRouteSource) },
+    { label: 'repeat families block known bus and rain repeat frames', pass: practiceRepeatKeysSource.includes('bus-crowded-next-time') && practiceRepeatKeysSource.includes('rain-game-cancel') },
     { label: 'repeat memory keeps a large QA window', pass: recentPromptLimit >= 1000 },
   ];
 }

@@ -405,19 +405,16 @@ export default function TranslationScreen() {
         ...cachedPrompts,
         ...localPrompts,
       ], 10, recentPromptIds, cachedPrompts);
-      const emergencyPrompts = uniquePracticeItems([
-        ...localPrompts,
-      ]).slice(0, 10);
-      const nextPrompts = selectedPrompts.length > 0 ? selectedPrompts : emergencyPrompts;
+      const nextPrompts = selectedPrompts;
 
       setHydratedProgress(null);
+      if (nextPrompts.length > 0) {
+        await recordPromptExposure(code, 'speaking', nextPrompts.flatMap(practiceRepeatKeys)).catch(() => undefined);
+      }
       setPrompts(nextPrompts);
       await saveDrillSessionContent(code, 'speaking', sessionId, nextPrompts).catch(() => undefined);
       setCurrentIdx(0);
       setIsPromptLoading(false);
-      if (nextPrompts.length > 0) {
-        void recordPromptExposure(code, 'speaking', nextPrompts.flatMap(practiceRepeatKeys));
-      }
       if (cachedPrompts.length < 8) {
         void refreshGeneratedPracticeCache({
           mode: 'speaking',
