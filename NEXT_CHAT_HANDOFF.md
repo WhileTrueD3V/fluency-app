@@ -258,6 +258,16 @@ Fix applied:
 Validation:
 
 - `node --check server/grading-server.mjs` passed.
+
+Follow-up production fix after the user still hit the recovery card:
+
+- Root cause: the anti-repeat filters could exhaust all local/static fallback content, so if AI generation returned null/rejected/retried-out, the route still ended with zero content and showed the recovery screen.
+- `utils/practiceContentQueue.ts` now fills with best-available backup items after fresh items are exhausted, instead of returning an empty array when the only remaining options have been seen before.
+- `data/index.ts` now lets local progressive fallback include stale-but-usable items after fresh local items are exhausted. Reading no longer pre-filters every repeated local passage out before the fallback selection.
+- Listening, Reading, Speaking, Conversation, and Texting routes now treat session-cache writes as non-fatal. A failed cache write can no longer clear a valid loaded fallback drill into the recovery state.
+- Latest validation passed: `npx tsc --noEmit`, `npm run audit:ai-quality`, `npm run validate:launch`, and `npm run build:web`.
+- Latest production root after deploy served `entry-2bd80027b67828ecabc6b121d1caf3d1.js`; `/api/health` returned `ok: true` and content task `timeoutMs: 22000`.
+- No live drill generation was started during this verification, so no OpenAI credits were spent.
 - `npx tsc --noEmit` passed.
 - `npm run build:web` passed.
 - `npm run validate:launch` passed with the existing bundle-id reminder.
