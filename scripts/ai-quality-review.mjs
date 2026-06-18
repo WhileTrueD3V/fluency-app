@@ -326,6 +326,10 @@ function evaluateOfflinePromptSafety() {
     speakingReview: speakingReviewPrompt(speakingReviewPayload),
   };
   const promptText = textFrom(prompts);
+  const practiceContentQueueSource = fs.readFileSync(path.resolve('utils/practiceContentQueue.ts'), 'utf8');
+  const localDataSource = fs.readFileSync(path.resolve('data/index.ts'), 'utf8');
+  const storageSource = fs.readFileSync(path.resolve('utils/storage.ts'), 'utf8');
+  const recentPromptLimit = Number(storageSource.match(/RECENT_PROMPT_LIMIT\s*=\s*(\d+)/)?.[1] ?? 0);
   const duplicateTexting = {
     items: [{
       id: 'ai-ja-duplicate-late-bring',
@@ -430,6 +434,9 @@ function evaluateOfflinePromptSafety() {
     { label: 'ungrounded bus-time reading is rejected offline', pass: ungroundedBusReadingIssues.length > 0 },
     { label: 'valid grounded reading is accepted offline', pass: validReadingIssues.length === 0 },
     { label: 'novelty retry prompt clearly changes scenario and answer logic', pass: /NOVELTY RETRY/.test(retryPrompt) && /different situation, source type, speech act, answer logic/.test(retryPrompt) },
+    { label: 'generated selector refuses stale backfill', pass: /filterFreshPracticeItems\(deduped, recentPromptIds, recentItems\)\.slice\(0, count\)/.test(practiceContentQueueSource) && !/const\s+backup\s*=/.test(practiceContentQueueSource) },
+    { label: 'local selector refuses stale backfill', pass: !/stalePreferred|staleFallback|shuffledStale/.test(localDataSource) },
+    { label: 'repeat memory keeps a large QA window', pass: recentPromptLimit >= 1000 },
   ];
 }
 

@@ -150,17 +150,7 @@ export function selectPracticeItems<T extends GeneratedPromptItem>(
   recentItems: GeneratedPromptItem[] = [],
 ): T[] {
   const deduped = uniquePracticeItems(items);
-  const fresh = filterFreshPracticeItems(deduped, recentPromptIds, recentItems);
-  if (fresh.length >= count) return fresh.slice(0, count);
-
-  const selected = [...fresh];
-  const selectedKeys = new Set(selected.flatMap(practiceRepeatKeys));
-  const backup = deduped.filter((item) => {
-    if (selected.some((selectedItem) => selectedItem.id === item.id)) return false;
-    return !practiceRepeatKeys(item).some((repeatKey) => selectedKeys.has(repeatKey));
-  });
-
-  return [...selected, ...backup].slice(0, count);
+  return filterFreshPracticeItems(deduped, recentPromptIds, recentItems).slice(0, count);
 }
 
 export function getGeneratedPracticeMemory<T extends GeneratedPromptItem>(

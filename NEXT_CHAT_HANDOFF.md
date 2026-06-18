@@ -63,6 +63,13 @@ Latest quality audit work:
   - `scripts/ai-quality-review.mjs` now includes the exact bad bus-time regression case and a valid grounded reading case.
   - `/api/health` now exposes `qualityGuards.readingGrounding: "2026-06-17-v1"` so production can prove this server-side guard is deployed without spending credits.
   - Offline verification passed: `node --check server/grading-server.mjs`, `node --check scripts/ai-quality-review.mjs`, `npm run audit:ai-quality`, `npx tsc --noEmit`, `npm run validate:launch`, and `npm run build:web`.
+- June 17, 2026 repeat prevention hardening:
+  - Root cause: shared selection helpers still had stale backfill paths. If generated/local fresh content was thin, `selectPracticeItems()` and `progressiveSubset()` could quietly refill with recently seen items, which made repeat passages/prompts appear even though repeat keys existed.
+  - `utils/practiceContentQueue.ts` now returns only `filterFreshPracticeItems(...).slice(0, count)` and no longer backfills from stale generated/cache items.
+  - `data/index.ts` now only returns fresh local fallback items; it no longer uses stale preferred/fallback pools.
+  - `utils/storage.ts` raised `RECENT_PROMPT_LIMIT` from `240` to `1200`, because each passage records multiple repeat keys and the old cap churned seen passages out too quickly during real QA.
+  - `scripts/ai-quality-review.mjs` now includes offline tripwires proving generated selectors refuse stale backfill, local selectors refuse stale backfill, and repeat memory keeps a large QA window.
+  - Product tradeoff: if fresh AI content is unavailable and local fresh fallback is exhausted, Kibbo should show the recovery/refund path or a shorter fresh set rather than knowingly serving repeats.
 - If AP prompt-set normalization produces zero valid sets, the server returns `502 AI_CONTENT_SCHEMA` so the app can fall back instead of accepting an empty AI result.
 - A targeted two-call verification passed for `conversation` and `texting`: both returned 2 valid app-shaped AP prompt sets, costing about `0.0896` cents total.
 - Latest tiny live QA attempt on June 10, 2026 used an isolated server on port `8799`, added only about `0.0838` cents, and stopped early because the content repeat guard caught a repeated club/schedule-change reading frame. That was a useful failure, not a runaway spend.

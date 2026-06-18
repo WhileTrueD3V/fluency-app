@@ -238,7 +238,9 @@ const KEYS = {
   DRILL_SESSION_PROGRESS: '@fluent:drillSessionProgress',
 } as const;
 
-const RECENT_PROMPT_LIMIT = 240;
+// Repeat keys include ids, fingerprints, topic families, passage text, and question cues.
+// Keep a larger window so heavy QA sessions cannot churn seen passages out too quickly.
+const RECENT_PROMPT_LIMIT = 1200;
 const ATTEMPT_MEMORY_LIMIT = 100;
 const WEAK_MEMORY_LIMIT = 80;
 const firstCompletionFeedbackListeners = new Set<() => void>();

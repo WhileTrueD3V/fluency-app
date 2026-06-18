@@ -48,21 +48,13 @@ function progressiveSubset<T extends PracticeRepeatItem & { id: string; difficul
 
   const freshPreferred = items.filter((item) => allowed(item) && fresh(item));
   const freshFallback = items.filter((item) => !allowed(item) && fresh(item)).sort(easierFirst);
-  const stalePreferred = items.filter((item) => allowed(item) && !fresh(item));
-  const staleFallback = items.filter((item) => !allowed(item) && !fresh(item)).sort(easierFirst);
   const shuffledFreshPreferred = [...freshPreferred]
     .sort(() => Math.random() - 0.5)
     .sort(byDifficulty);
   const shuffledFreshFallback = [...freshFallback].sort(() => Math.random() - 0.5);
-  const shuffledStalePreferred = [...stalePreferred]
-    .sort(() => Math.random() - 0.5)
-    .sort(byDifficulty);
-  const shuffledStaleFallback = [...staleFallback].sort(() => Math.random() - 0.5);
   const pool = [
     ...shuffledFreshPreferred,
     ...shuffledFreshFallback,
-    ...shuffledStalePreferred,
-    ...shuffledStaleFallback,
   ];
   return pool.slice(0, Math.min(count, pool.length));
 }
